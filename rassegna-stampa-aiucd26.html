@@ -7,13 +7,14 @@
 
   <style>
     :root {
-      --rs-bg: #f6f7fb;
       --rs-card: #ffffff;
       --rs-text: #1f2937;
       --rs-muted: #667085;
       --rs-border: #e5e7eb;
       --rs-accent: #1d4ed8;
       --rs-accent-soft: #eef4ff;
+      --rs-date-bg: #f3f4f6;
+      --rs-date-text: #4b5563;
       --rs-shadow: 0 12px 32px rgba(15, 23, 42, 0.08);
       --rs-radius: 22px;
     }
@@ -177,8 +178,8 @@
     .rs-data {
       padding: 7px 12px;
       border-radius: 999px;
-      background: #f3f4f6;
-      color: #4b5563;
+      background: var(--rs-date-bg);
+      color: var(--rs-date-text);
       font-size: 0.82rem;
       font-weight: 700;
       line-height: 1.2;
@@ -222,6 +223,7 @@
     }
 
     .rs-state {
+      grid-column: 1 / -1;
       padding: 34px 20px;
       border: 1px dashed #cbd5e1;
       border-radius: 20px;
@@ -294,11 +296,12 @@
 
     <section class="rs-toolbar">
       <div id="rs-count" class="rs-count">Caricamento articoli…</div>
+
       <input
         id="rs-search"
         class="rs-search"
         type="search"
-        placeholder="Cerca per titolo o testata"
+        placeholder="Cerca per titolo, testata o data"
         aria-label="Cerca nella rassegna stampa"
       >
     </section>
@@ -309,6 +312,18 @@
   </main>
 
   <script>
+    /*
+      ============================================================
+      LINK CSV DEL GOOGLE SHEET
+      ============================================================
+      Il foglio deve avere almeno queste colonne:
+
+      Titolo | testata | link | data
+
+      La colonna data può chiamarsi:
+      data, Data, DATA, date
+    */
+
     const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTOdD9r0Df4QYR_OceikJDAbsXq4h2B9K0w7d7GgNLeddbopanFw6RRtFlPZVO4ZQp7qYMP7KPdS0cw/pub?gid=1417877873&single=true&output=csv";
 
     const grid = document.getElementById("rs-grid");
@@ -363,7 +378,12 @@
       return String(value || "")
         .toLowerCase()
         .trim()
-        .replace(/\s+/g, "");
+        .replace(/\s+/g, "")
+        .replace(/[àá]/g, "a")
+        .replace(/[èé]/g, "e")
+        .replace(/[ìí]/g, "i")
+        .replace(/[òó]/g, "o")
+        .replace(/[ùú]/g, "u");
     }
 
     function escapeHTML(value) {
@@ -383,36 +403,52 @@
       }
 
       /*
-        Formato consigliato:
+        Formati italiani:
         29/05/2026
+        29-05-2026
+        29.05.2026
       */
-      const formatoItaliano = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+      let match = raw.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})$/);
 
-      if (formatoItaliano) {
-        const giorno = parseInt(formatoItaliano[1], 10);
-        const mese = parseInt(formatoItaliano[2], 10) - 1;
-        const anno = parseInt(formatoItaliano[3], 10);
+      if (match) {
+        const giorno = parseInt(match[1], 10);
+        const mese = parseInt(match[2], 10) - 1;
+        const anno = parseInt(match[3], 10);
 
         return new Date(anno, mese, giorno).getTime();
       }
 
       /*
-        Formato alternativo:
+        Formati ISO:
         2026-05-29
+        2026/05/29
+        2026.05.29
       */
-      const formatoISO = raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+      match = raw.match(/^(\d{4})[\/\-.](\d{1,2})[\/\-.](\d{1,2})$/);
 
-      if (formatoISO) {
-        const anno = parseInt(formatoISO[1], 10);
-        const mese = parseInt(formatoISO[2], 10) - 1;
-        const giorno = parseInt(formatoISO[3], 10);
+      if (match) {
+        const anno = parseInt(match[1], 10);
+        const mese = parseInt(match[2], 10) - 1;
+        const giorno = parseInt(match[3], 10);
 
         return new Date(anno, mese, giorno).getTime();
       }
 
       /*
-        Ultimo tentativo: lascia interpretare al browser.
-        Serve solo come fallback.
+        Eventuale numero seriale esportato da Google Sheets / Excel.
+        Per esempio: 45442
+      */
+      if (/^\d+(\.\d+)?$/.test(raw)) {
+        const seriale = parseFloat(raw);
+
+        if (seriale > 20000 && seriale < 80000) {
+          const excelEpoch = new Date(1899, 11, 30);
+          return excelEpoch.getTime() + seriale * 24 * 60 * 60 * 1000;
+        }
+      }
+
+      /*
+        Fallback generico.
       */
       const fallback = new Date(raw).getTime();
 
@@ -489,7 +525,7 @@
       const filtrati = articoli.filter(item => {
         return item.titolo.toLowerCase().includes(q) ||
                item.testata.toLowerCase().includes(q) ||
-               item.data.toLowerCase().includes(q) ||
+               item.dataOriginale.toLowerCase().includes(q) ||
                item.dataFormattata.toLowerCase().includes(q);
       });
 
@@ -510,7 +546,7 @@
         const rows = parseCSV(text);
 
         if (!rows || rows.length < 2) {
-          throw new Error("Il foglio è vuoto.");
+          throw new Error("Il foglio è vuoto oppure non contiene righe dati.");
         }
 
         const headers = rows[0].map(normalizza);
@@ -518,45 +554,58 @@
         const titoloIndex = headers.indexOf("titolo");
         const testataIndex = headers.indexOf("testata");
         const linkIndex = headers.indexOf("link");
-        const dataIndex = headers.indexOf("data");
+
+        let dataIndex = headers.indexOf("data");
+
+        if (dataIndex === -1) {
+          dataIndex = headers.indexOf("date");
+        }
 
         if (
           titoloIndex === -1 ||
           testataIndex === -1 ||
-          linkIndex === -1 ||
-          dataIndex === -1
+          linkIndex === -1
         ) {
-          throw new Error("Colonne non trovate.");
+          throw new Error("Colonne obbligatorie non trovate. Servono: Titolo, testata, link.");
         }
 
         articoli = rows.slice(1)
           .map(row => {
-            const dataOriginale = row[dataIndex] || "";
+            const dataOriginale = dataIndex !== -1 ? row[dataIndex] || "" : "";
             const timestamp = parseData(dataOriginale);
 
             return {
               titolo: row[titoloIndex] || "",
               testata: row[testataIndex] || "",
               link: row[linkIndex] || "",
-              data: dataOriginale,
+              dataOriginale: dataOriginale,
               dataTimestamp: timestamp,
               dataFormattata: formattaData(dataOriginale)
             };
           })
           .filter(item => item.titolo && item.testata && item.link)
-          .sort((a, b) => b.dataTimestamp - a.dataTimestamp);
+          .sort((a, b) => {
+            /*
+              Ordinamento dal più recente al meno recente.
+              Se una riga non ha data, va in fondo.
+            */
+            return b.dataTimestamp - a.dataTimestamp;
+          });
 
         render(articoli);
 
       } catch (error) {
-        console.error(error);
+        console.error("Errore rassegna stampa:", error);
 
         grid.innerHTML = `
           <div class="rs-state rs-error">
             Errore nel caricamento della rassegna stampa.
             <br>
-            Verifica che il foglio sia pubblicato come CSV e che abbia le colonne:
-            <strong>Titolo</strong>, <strong>testata</strong>, <strong>link</strong>, <strong>data</strong>.
+            Verifica che il foglio abbia almeno le colonne:
+            <strong>Titolo</strong>, <strong>testata</strong>, <strong>link</strong>.
+            <br>
+            Per mostrare e ordinare le date serve anche la colonna:
+            <strong>data</strong>.
           </div>
         `;
 
