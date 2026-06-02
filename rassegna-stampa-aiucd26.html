@@ -122,7 +122,7 @@
 
     .rs-card {
       position: relative;
-      min-height: 220px;
+      min-height: 245px;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
@@ -143,7 +143,7 @@
     }
 
     .rs-card a {
-      min-height: 220px;
+      min-height: 245px;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
@@ -152,10 +152,16 @@
       text-decoration: none;
     }
 
-    .rs-testata {
-      align-self: flex-start;
-      max-width: 100%;
+    .rs-meta {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
       margin-bottom: 18px;
+    }
+
+    .rs-testata {
+      max-width: 100%;
       padding: 7px 12px;
       border-radius: 999px;
       background: var(--rs-accent-soft);
@@ -166,6 +172,17 @@
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+    }
+
+    .rs-data {
+      padding: 7px 12px;
+      border-radius: 999px;
+      background: #f3f4f6;
+      color: #4b5563;
+      font-size: 0.82rem;
+      font-weight: 700;
+      line-height: 1.2;
+      white-space: nowrap;
     }
 
     .rs-title {
@@ -251,7 +268,7 @@
 
       .rs-card,
       .rs-card a {
-        min-height: 190px;
+        min-height: 210px;
       }
 
       .rs-card a {
@@ -269,7 +286,7 @@
   <main class="rassegna-stampa-aiucd26">
     <section class="rs-intro">
       <div class="rs-eyebrow">Rassegna stampa</div>
-      <h1></h1>
+      <h1>Dicono di noi</h1>
       <p>
         Una raccolta aggiornata di articoli, segnalazioni e uscite stampa dedicate ad AIUCD 2026.
       </p>
@@ -358,6 +375,70 @@
         .replaceAll("'", "&#039;");
     }
 
+    function parseData(value) {
+      const raw = String(value || "").trim();
+
+      if (!raw) {
+        return 0;
+      }
+
+      /*
+        Formato consigliato:
+        29/05/2026
+      */
+      const formatoItaliano = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+
+      if (formatoItaliano) {
+        const giorno = parseInt(formatoItaliano[1], 10);
+        const mese = parseInt(formatoItaliano[2], 10) - 1;
+        const anno = parseInt(formatoItaliano[3], 10);
+
+        return new Date(anno, mese, giorno).getTime();
+      }
+
+      /*
+        Formato alternativo:
+        2026-05-29
+      */
+      const formatoISO = raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+
+      if (formatoISO) {
+        const anno = parseInt(formatoISO[1], 10);
+        const mese = parseInt(formatoISO[2], 10) - 1;
+        const giorno = parseInt(formatoISO[3], 10);
+
+        return new Date(anno, mese, giorno).getTime();
+      }
+
+      /*
+        Ultimo tentativo: lascia interpretare al browser.
+        Serve solo come fallback.
+      */
+      const fallback = new Date(raw).getTime();
+
+      return Number.isNaN(fallback) ? 0 : fallback;
+    }
+
+    function formattaData(value) {
+      const raw = String(value || "").trim();
+
+      if (!raw) {
+        return "";
+      }
+
+      const timestamp = parseData(raw);
+
+      if (!timestamp) {
+        return raw;
+      }
+
+      return new Intl.DateTimeFormat("it-IT", {
+        day: "2-digit",
+        month: "long",
+        year: "numeric"
+      }).format(new Date(timestamp));
+    }
+
     function render(lista) {
       if (!lista.length) {
         grid.innerHTML = '<div class="rs-state">Nessun risultato trovato.</div>';
@@ -372,13 +453,18 @@
       grid.innerHTML = lista.map(item => {
         const titolo = escapeHTML(item.titolo);
         const testata = escapeHTML(item.testata);
+        const data = escapeHTML(item.dataFormattata);
         const link = escapeHTML(item.link);
 
         return `
           <article class="rs-card">
             <a href="${link}" target="_blank" rel="noopener noreferrer">
               <div>
-                <div class="rs-testata">${testata}</div>
+                <div class="rs-meta">
+                  <div class="rs-testata">${testata}</div>
+                  ${data ? `<div class="rs-data">${data}</div>` : ""}
+                </div>
+
                 <h2 class="rs-title">${titolo}</h2>
               </div>
 
@@ -402,7 +488,9 @@
 
       const filtrati = articoli.filter(item => {
         return item.titolo.toLowerCase().includes(q) ||
-               item.testata.toLowerCase().includes(q);
+               item.testata.toLowerCase().includes(q) ||
+               item.data.toLowerCase().includes(q) ||
+               item.dataFormattata.toLowerCase().includes(q);
       });
 
       render(filtrati);
@@ -430,18 +518,33 @@
         const titoloIndex = headers.indexOf("titolo");
         const testataIndex = headers.indexOf("testata");
         const linkIndex = headers.indexOf("link");
+        const dataIndex = headers.indexOf("data");
 
-        if (titoloIndex === -1 || testataIndex === -1 || linkIndex === -1) {
+        if (
+          titoloIndex === -1 ||
+          testataIndex === -1 ||
+          linkIndex === -1 ||
+          dataIndex === -1
+        ) {
           throw new Error("Colonne non trovate.");
         }
 
         articoli = rows.slice(1)
-          .map(row => ({
-            titolo: row[titoloIndex] || "",
-            testata: row[testataIndex] || "",
-            link: row[linkIndex] || ""
-          }))
-          .filter(item => item.titolo && item.testata && item.link);
+          .map(row => {
+            const dataOriginale = row[dataIndex] || "";
+            const timestamp = parseData(dataOriginale);
+
+            return {
+              titolo: row[titoloIndex] || "",
+              testata: row[testataIndex] || "",
+              link: row[linkIndex] || "",
+              data: dataOriginale,
+              dataTimestamp: timestamp,
+              dataFormattata: formattaData(dataOriginale)
+            };
+          })
+          .filter(item => item.titolo && item.testata && item.link)
+          .sort((a, b) => b.dataTimestamp - a.dataTimestamp);
 
         render(articoli);
 
@@ -453,7 +556,7 @@
             Errore nel caricamento della rassegna stampa.
             <br>
             Verifica che il foglio sia pubblicato come CSV e che abbia le colonne:
-            <strong>Titolo</strong>, <strong>testata</strong>, <strong>link</strong>.
+            <strong>Titolo</strong>, <strong>testata</strong>, <strong>link</strong>, <strong>data</strong>.
           </div>
         `;
 
