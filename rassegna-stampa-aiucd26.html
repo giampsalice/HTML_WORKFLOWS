@@ -41,6 +41,40 @@
       margin-bottom: 34px;
     }
 
+    .rs-topbar {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 18px;
+    }
+
+    .rs-lang-switch {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 5px;
+      border: 1px solid var(--rs-border);
+      border-radius: 999px;
+      background: #ffffff;
+      box-shadow: 0 8px 22px rgba(15, 23, 42, 0.06);
+    }
+
+    .rs-lang-button {
+      border: 0;
+      border-radius: 999px;
+      padding: 8px 14px;
+      background: transparent;
+      color: var(--rs-muted);
+      font-size: 0.82rem;
+      font-weight: 800;
+      cursor: pointer;
+      transition: background 0.2s ease, color 0.2s ease;
+    }
+
+    .rs-lang-button.is-active {
+      background: var(--rs-accent);
+      color: #ffffff;
+    }
+
     .rs-eyebrow {
       display: inline-flex;
       align-items: center;
@@ -117,7 +151,7 @@
 
     .rs-grid {
       display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 18px;
     }
 
@@ -239,6 +273,60 @@
       background: #fff5f5;
     }
 
+    .rs-pagination {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 30px;
+    }
+
+    .rs-page-button,
+    .rs-page-arrow {
+      min-width: 42px;
+      height: 42px;
+      border: 1px solid var(--rs-border);
+      border-radius: 999px;
+      background: #ffffff;
+      color: var(--rs-text);
+      font-size: 0.92rem;
+      font-weight: 800;
+      cursor: pointer;
+      transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+    }
+
+    .rs-page-button:hover,
+    .rs-page-arrow:hover {
+      border-color: rgba(29, 78, 216, 0.45);
+      transform: translateY(-2px);
+    }
+
+    .rs-page-button.is-active {
+      background: var(--rs-accent);
+      border-color: var(--rs-accent);
+      color: #ffffff;
+    }
+
+    .rs-page-arrow {
+      padding: 0 16px;
+    }
+
+    .rs-page-arrow:disabled {
+      cursor: not-allowed;
+      opacity: 0.45;
+      transform: none;
+    }
+
+    .rs-page-info {
+      width: 100%;
+      margin-top: 8px;
+      text-align: center;
+      color: var(--rs-muted);
+      font-size: 0.88rem;
+      font-weight: 700;
+    }
+
     @media (max-width: 900px) {
       .rs-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -253,6 +341,10 @@
       .rs-intro {
         text-align: left;
         margin-bottom: 24px;
+      }
+
+      .rs-topbar {
+        justify-content: flex-start;
       }
 
       .rs-intro p {
@@ -280,6 +372,13 @@
       .rs-title {
         font-size: 1.08rem;
       }
+
+      .rs-page-button,
+      .rs-page-arrow {
+        min-width: 38px;
+        height: 38px;
+        font-size: 0.86rem;
+      }
     }
   </style>
 </head>
@@ -287,9 +386,18 @@
 <body>
   <main class="rassegna-stampa-aiucd26">
     <section class="rs-intro">
-      <div class="rs-eyebrow">Rassegna stampa</div>
-      <h1>Dicono di noi</h1>
-      <p>
+      <div class="rs-topbar">
+        <div class="rs-lang-switch" aria-label="Selettore lingua">
+          <button id="rs-lang-it" class="rs-lang-button is-active" type="button">IT</button>
+          <button id="rs-lang-en" class="rs-lang-button" type="button">EN</button>
+        </div>
+      </div>
+
+      <div id="rs-eyebrow" class="rs-eyebrow">Rassegna stampa</div>
+
+      <h1 id="rs-main-title">Dicono di noi</h1>
+
+      <p id="rs-main-subtitle">
         Una raccolta aggiornata di articoli, segnalazioni e uscite stampa dedicate ad AIUCD 2026.
       </p>
     </section>
@@ -309,6 +417,8 @@
     <section id="rs-grid" class="rs-grid">
       <div class="rs-state">Caricamento rassegna stampa…</div>
     </section>
+
+    <nav id="rs-pagination" class="rs-pagination" aria-label="Paginazione rassegna stampa"></nav>
   </main>
 
   <script>
@@ -316,21 +426,91 @@
       ============================================================
       LINK CSV DEL GOOGLE SHEET
       ============================================================
-      Il foglio deve avere almeno queste colonne:
+      Il foglio deve avere queste colonne:
 
       Titolo | testata | link | data
 
-      La colonna data può chiamarsi:
-      data, Data, DATA, date
+      Titoli degli articoli e nomi delle testate NON vengono tradotti.
+      Viene tradotta solo l'interfaccia della rassegna stampa.
     */
 
     const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTOdD9r0Df4QYR_OceikJDAbsXq4h2B9K0w7d7GgNLeddbopanFw6RRtFlPZVO4ZQp7qYMP7KPdS0cw/pub?gid=1417877873&single=true&output=csv";
 
+    const ITEMS_PER_PAGE = 10;
+
     const grid = document.getElementById("rs-grid");
     const count = document.getElementById("rs-count");
     const search = document.getElementById("rs-search");
+    const pagination = document.getElementById("rs-pagination");
 
+    const langIt = document.getElementById("rs-lang-it");
+    const langEn = document.getElementById("rs-lang-en");
+
+    const eyebrow = document.getElementById("rs-eyebrow");
+    const mainTitle = document.getElementById("rs-main-title");
+    const mainSubtitle = document.getElementById("rs-main-subtitle");
+
+    let currentLang = "it";
+    let currentPage = 1;
     let articoli = [];
+    let risultatiCorrenti = [];
+
+    const TEXTS = {
+      it: {
+        htmlLang: "it",
+        pageTitle: "Rassegna stampa AIUCD 2026",
+        langLabel: "Selettore lingua",
+        paginationLabel: "Paginazione rassegna stampa",
+        eyebrow: "Rassegna stampa",
+        title: "Dicono di noi",
+        subtitle: "Una raccolta aggiornata di articoli, segnalazioni e uscite stampa dedicate ad AIUCD 2026.",
+        loadingCount: "Caricamento articoli…",
+        loadingState: "Caricamento rassegna stampa…",
+        searchPlaceholder: "Cerca per titolo, testata o data",
+        searchAria: "Cerca nella rassegna stampa",
+        oneArticle: "1 articolo",
+        manyArticles: "articoli",
+        noResults: "Nessun risultato trovato.",
+        readArticle: "Leggi l’articolo",
+        previous: "Precedente",
+        next: "Successiva",
+        page: "Pagina",
+        of: "di",
+        showing: "Visualizzati",
+        from: "di",
+        errorTitle: "Errore nel caricamento della rassegna stampa.",
+        errorText: "Verifica che il foglio abbia le colonne: Titolo, testata, link, data."
+      },
+      en: {
+        htmlLang: "en",
+        pageTitle: "AIUCD 2026 Press Review",
+        langLabel: "Language selector",
+        paginationLabel: "Press review pagination",
+        eyebrow: "Press review",
+        title: "They talk about us",
+        subtitle: "An updated collection of articles, mentions and press coverage dedicated to AIUCD 2026.",
+        loadingCount: "Loading articles…",
+        loadingState: "Loading press review…",
+        searchPlaceholder: "Search by title, outlet or date",
+        searchAria: "Search the press review",
+        oneArticle: "1 article",
+        manyArticles: "articles",
+        noResults: "No results found.",
+        readArticle: "Read the article",
+        previous: "Previous",
+        next: "Next",
+        page: "Page",
+        of: "of",
+        showing: "Showing",
+        from: "of",
+        errorTitle: "Error loading the press review.",
+        errorText: "Please check that the sheet has the columns: Titolo, testata, link, data."
+      }
+    };
+
+    function t(key) {
+      return TEXTS[currentLang][key];
+    }
 
     function parseCSV(text) {
       const rows = [];
@@ -436,7 +616,6 @@
 
       /*
         Eventuale numero seriale esportato da Google Sheets / Excel.
-        Per esempio: 45442
       */
       if (/^\d+(\.\d+)?$/.test(raw)) {
         const seriale = parseFloat(raw);
@@ -447,9 +626,6 @@
         }
       }
 
-      /*
-        Fallback generico.
-      */
       const fallback = new Date(raw).getTime();
 
       return Number.isNaN(fallback) ? 0 : fallback;
@@ -468,25 +644,77 @@
         return raw;
       }
 
-      return new Intl.DateTimeFormat("it-IT", {
+      const locale = currentLang === "it" ? "it-IT" : "en-GB";
+
+      return new Intl.DateTimeFormat(locale, {
         day: "2-digit",
         month: "long",
         year: "numeric"
       }).format(new Date(timestamp));
     }
 
+    function aggiornaInterfaccia() {
+      document.documentElement.lang = t("htmlLang");
+      document.title = t("pageTitle");
+
+      eyebrow.textContent = t("eyebrow");
+      mainTitle.textContent = t("title");
+      mainSubtitle.textContent = t("subtitle");
+
+      search.placeholder = t("searchPlaceholder");
+      search.setAttribute("aria-label", t("searchAria"));
+
+      document.querySelector(".rs-lang-switch").setAttribute("aria-label", t("langLabel"));
+      pagination.setAttribute("aria-label", t("paginationLabel"));
+
+      langIt.classList.toggle("is-active", currentLang === "it");
+      langEn.classList.toggle("is-active", currentLang === "en");
+
+      articoli = articoli.map(item => {
+        return {
+          ...item,
+          dataFormattata: formattaData(item.dataOriginale)
+        };
+      });
+
+      applicaFiltro();
+    }
+
+    function aggiornaConteggio(lista) {
+      if (lista.length === 1) {
+        count.textContent = t("oneArticle");
+      } else {
+        count.textContent = lista.length + " " + t("manyArticles");
+      }
+    }
+
     function render(lista) {
+      risultatiCorrenti = lista;
+
       if (!lista.length) {
-        grid.innerHTML = '<div class="rs-state">Nessun risultato trovato.</div>';
-        count.textContent = "0 articoli";
+        grid.innerHTML = '<div class="rs-state">' + t("noResults") + '</div>';
+        count.textContent = "0 " + t("manyArticles");
+        pagination.innerHTML = "";
         return;
       }
 
-      count.textContent = lista.length === 1
-        ? "1 articolo"
-        : lista.length + " articoli";
+      aggiornaConteggio(lista);
 
-      grid.innerHTML = lista.map(item => {
+      const totalPages = Math.ceil(lista.length / ITEMS_PER_PAGE);
+
+      if (currentPage > totalPages) {
+        currentPage = totalPages;
+      }
+
+      if (currentPage < 1) {
+        currentPage = 1;
+      }
+
+      const start = (currentPage - 1) * ITEMS_PER_PAGE;
+      const end = start + ITEMS_PER_PAGE;
+      const pagina = lista.slice(start, end);
+
+      grid.innerHTML = pagina.map(item => {
         const titolo = escapeHTML(item.titolo);
         const testata = escapeHTML(item.testata);
         const data = escapeHTML(item.dataFormattata);
@@ -505,16 +733,74 @@
               </div>
 
               <div class="rs-bottom">
-                <span>Leggi l’articolo</span>
+                <span>${t("readArticle")}</span>
                 <span class="rs-arrow" aria-hidden="true">→</span>
               </div>
             </a>
           </article>
         `;
       }).join("");
+
+      renderPaginazione(totalPages, lista.length, start, Math.min(end, lista.length));
     }
 
-    function filtra() {
+    function renderPaginazione(totalPages, totalItems, startIndex, endIndex) {
+      if (totalPages <= 1) {
+        pagination.innerHTML = `
+          <div class="rs-page-info">
+            ${t("showing")} ${startIndex + 1}-${endIndex} ${t("from")} ${totalItems}
+          </div>
+        `;
+        return;
+      }
+
+      let buttons = "";
+
+      buttons += `
+        <button class="rs-page-arrow" type="button" data-page="${currentPage - 1}" ${currentPage === 1 ? "disabled" : ""}>
+          ${t("previous")}
+        </button>
+      `;
+
+      for (let i = 1; i <= totalPages; i++) {
+        buttons += `
+          <button class="rs-page-button ${i === currentPage ? "is-active" : ""}" type="button" data-page="${i}" aria-label="${t("page")} ${i}">
+            ${i}
+          </button>
+        `;
+      }
+
+      buttons += `
+        <button class="rs-page-arrow" type="button" data-page="${currentPage + 1}" ${currentPage === totalPages ? "disabled" : ""}>
+          ${t("next")}
+        </button>
+      `;
+
+      buttons += `
+        <div class="rs-page-info">
+          ${t("page")} ${currentPage} ${t("of")} ${totalPages} · ${t("showing")} ${startIndex + 1}-${endIndex} ${t("from")} ${totalItems}
+        </div>
+      `;
+
+      pagination.innerHTML = buttons;
+
+      pagination.querySelectorAll("button[data-page]").forEach(button => {
+        button.addEventListener("click", () => {
+          const nuovaPagina = parseInt(button.getAttribute("data-page"), 10);
+
+          if (!Number.isNaN(nuovaPagina)) {
+            currentPage = nuovaPagina;
+            render(risultatiCorrenti);
+            window.scrollTo({
+              top: 0,
+              behavior: "smooth"
+            });
+          }
+        });
+      });
+    }
+
+    function applicaFiltro() {
       const q = search.value.toLowerCase().trim();
 
       if (!q) {
@@ -532,8 +818,17 @@
       render(filtrati);
     }
 
+    function cambiaLingua(lang) {
+      currentLang = lang;
+      currentPage = 1;
+      aggiornaInterfaccia();
+    }
+
     async function carica() {
       try {
+        count.textContent = t("loadingCount");
+        grid.innerHTML = '<div class="rs-state">' + t("loadingState") + '</div>';
+
         const response = await fetch(CSV_URL, {
           cache: "no-store"
         });
@@ -564,14 +859,15 @@
         if (
           titoloIndex === -1 ||
           testataIndex === -1 ||
-          linkIndex === -1
+          linkIndex === -1 ||
+          dataIndex === -1
         ) {
-          throw new Error("Colonne obbligatorie non trovate. Servono: Titolo, testata, link.");
+          throw new Error("Colonne obbligatorie non trovate. Servono: Titolo, testata, link, data.");
         }
 
         articoli = rows.slice(1)
           .map(row => {
-            const dataOriginale = dataIndex !== -1 ? row[dataIndex] || "" : "";
+            const dataOriginale = row[dataIndex] || "";
             const timestamp = parseData(dataOriginale);
 
             return {
@@ -585,13 +881,10 @@
           })
           .filter(item => item.titolo && item.testata && item.link)
           .sort((a, b) => {
-            /*
-              Ordinamento dal più recente al meno recente.
-              Se una riga non ha data, va in fondo.
-            */
             return b.dataTimestamp - a.dataTimestamp;
           });
 
+        currentPage = 1;
         render(articoli);
 
       } catch (error) {
@@ -599,21 +892,29 @@
 
         grid.innerHTML = `
           <div class="rs-state rs-error">
-            Errore nel caricamento della rassegna stampa.
+            ${t("errorTitle")}
             <br>
-            Verifica che il foglio abbia almeno le colonne:
-            <strong>Titolo</strong>, <strong>testata</strong>, <strong>link</strong>.
-            <br>
-            Per mostrare e ordinare le date serve anche la colonna:
-            <strong>data</strong>.
+            ${t("errorText")}
           </div>
         `;
 
-        count.textContent = "Errore di caricamento";
+        count.textContent = t("errorTitle");
+        pagination.innerHTML = "";
       }
     }
 
-    search.addEventListener("input", filtra);
+    search.addEventListener("input", () => {
+      currentPage = 1;
+      applicaFiltro();
+    });
+
+    langIt.addEventListener("click", () => {
+      cambiaLingua("it");
+    });
+
+    langEn.addEventListener("click", () => {
+      cambiaLingua("en");
+    });
 
     carica();
   </script>
