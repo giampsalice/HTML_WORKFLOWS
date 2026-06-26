@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Raccolta Firme – Manifesto</title>
+
+  <!--
+  ═══════════════════════════════════════════════════════════════
+   ISTRUZIONI DI INCORPORAMENTO
+  ═══════════════════════════════════════════════════════════════
+  1. Configura la sezione CONFIGURAZIONE qui sotto
+  2. Per incorporare in WordPress / blog:
+       – usa questo file come pagina autonoma, oppure
+       – copia il contenuto di <body> in un blocco HTML personalizzato
+  3. Per incorporare come <iframe> in qualsiasi sito:
+       <iframe
+         src="URL_DI_QUESTO_FILE"
+         width="100%" height="1100"
+         style="border:none; max-width:720px; display:block; margin:auto;"
+         title="Raccolta firme manifesto">
+       </iframe>
+  ═══════════════════════════════════════════════════════════════
+  -->
+
+  <style>
+    /* ── RESET & BASE ──────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --ink:      #1a1a2e;
+      --ink-mid:  #3d3d5c;
+      --ink-soft: #6b6b8a;
+      --ink-mute: #a0a0b8;
+
+      --paper:    #ffffff;
+      --sheet:    #f4f4f8;
+      --tint:     #eeeef6;
+
+      --accent:   #3f3fa8;
+      --accent-h: #2e2e8a;
+      --accent-bg:#ececfb;
+
+      --success:  #0e6b45;
+      --success-bg:#dff4ec;
+      --danger:   #c0392b;
+
+      --border:   rgba(60,60,120,0.13);
+      --border-s: rgba(60,60,120,0.24);
+
+      --r:        8px;
+      --r-card:   14px;
+      --shadow:   0 2px 18px rgba(30,30,80,0.08);
+    }
+
+    body {
+      font-family: "Segoe UI", system-ui, -apple-system, Arial, sans-serif;
+      font-size: 15px;
+      line-height: 1.6;
+      color: var(--ink);
+      background: var(--sheet);
+      padding: 24px 12px 48px;
+    }
+
+    /* ── WRAPPER ───────────────────────────────────────────── */
+    .mf-wrapper {
+      max-width: 680px;
+      margin: 0 auto;
+    }
+
+    /* ── TESTATA ───────────────────────────────────────────── */
+    .mf-header {
+      border-radius: var(--r-card);
+      overflow: hidden;
+      border: 1px solid var(--border);
+      background: var(--paper);
+      margin-bottom: 18px;
+      box-shadow: var(--shadow);
+    }
+
+    .mf-header-image {
+      min-height: 90px;
+      background: var(--ink);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* PERSONALIZZA: sostituisci l'URL dell'immagine testata */
+    .mf-header-image.has-image { background: #000; }
+    .mf-header-image img {
+      width: 100%; height: 100%; object-fit: cover;
+      position: absolute; inset: 0;
+    }
+
+    .mf-header-fallback {
+      padding: 22px 28px;
+      text-align: center;
+    }
+    .mf-header-fallback h2 {
+      color: #fff;
+      font-size: 22px;
+      font-weight: 600;
+      letter-spacing: -0.3px;
+    }
+    .mf-header-fallback p {
+      color: rgba(255,255,255,0.6);
+      font-size: 13px;
+      margin-top: 4px;
+    }
+
+    .mf-header-meta {
+      padding: 16px 22px;
+      border-top: 1px solid var(--border);
+    }
+    .mf-header-meta .form-title {
+      font-size: 17px;
+      font-weight: 600;
+      color: var(--ink);
+    }
+    .mf-header-meta .form-sub {
+      font-size: 13px;
+      color: var(--ink-soft);
+      margin-top: 2px;
+    }
+
+    /* ── SEZIONI ───────────────────────────────────────────── */
+    .mf-card {
+      background: var(--paper);
+      border-radius: var(--r-card);
+      border: 1px solid var(--border);
+      padding: 20px 22px;
+      margin-bottom: 14px;
+      box-shadow: var(--shadow);
+    }
+
+    .mf-section-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--ink-mid);
+      text-transform: uppercase;
+      letter-spacing: .6px;
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+    .mf-section-title svg {
+      width: 15px; height: 15px;
+      stroke: var(--accent);
+      fill: none;
+      flex-shrink: 0;
+    }
+
+    .badge-opt {
+      font-size: 10px;
+      font-weight: 500;
+      text-transform: none;
+      letter-spacing: 0;
+      color: var(--ink-mute);
+      background: var(--tint);
+      border: 1px solid var(--border);
+      border-radius: 99px;
+      padding: 1px 8px;
+      margin-left: 4px;
+    }
+
+    /* ── MANIFESTO BOX ─────────────────────────────────────── */
+    .manifesto-box {
+      background: var(--accent-bg);
+      border: 1px solid rgba(63,63,168,0.2);
+      border-radius: var(--r);
+      padding: 14px 16px;
+      font-size: 13px;
+      color: var(--ink-mid);
+      line-height: 1.7;
+      margin-bottom: 0;
+    }
+    .manifesto-box a {
+      color: var(--accent);
+      font-weight: 500;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .manifesto-box a:hover { text-decoration: underline; }
+
+    /* ── FORM FIELDS ───────────────────────────────────────── */
+    .row-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .row-1 { margin-bottom: 12px; }
+
+    .mf-field { display: flex; flex-direction: column; gap: 4px; }
+    .mf-field label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--ink-mid);
+    }
+    .mf-field label .req { color: var(--danger); margin-left: 2px; }
+
+    .mf-field input,
+    .mf-field select,
+    .mf-field textarea {
+      width: 100%;
+      border: 1px solid var(--border-s);
+      border-radius: var(--r);
+      padding: 9px 12px;
+      font-size: 14px;
+      color: var(--ink);
+      background: var(--paper);
+      font-family: inherit;
+      transition: border-color .15s, box-shadow .15s;
+    }
+    .mf-field input:focus,
+    .mf-field select:focus,
+    .mf-field textarea:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(63,63,168,0.12);
+    }
+    .mf-field input.error,
+    .mf-field textarea.error { border-color: var(--danger); }
+
+    .mf-field textarea { resize: vertical; min-height: 90px; }
+
+    /* ── DICHIARAZIONE ─────────────────────────────────────── */
+    .declaration-box {
+      background: var(--accent-bg);
+      border: 1px solid rgba(63,63,168,0.2);
+      border-radius: var(--r);
+      padding: 14px 16px;
+      font-size: 13px;
+      color: var(--ink-mid);
+      line-height: 1.7;
+      margin-bottom: 16px;
+    }
+
+    .check-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .check-row input[type="checkbox"] {
+      margin-top: 3px;
+      flex-shrink: 0;
+      accent-color: var(--accent);
+      width: 15px;
+      height: 15px;
+    }
+    .check-row label {
+      font-size: 13px;
+      color: var(--ink);
+      line-height: 1.5;
+    }
+
+    /* ── PROGETTI ──────────────────────────────────────────── */
+    .proj-item {
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      padding: 12px 14px 10px;
+      margin-bottom: 8px;
+      background: var(--tint);
+      position: relative;
+    }
+    .proj-item .remove-proj {
+      position: absolute;
+      top: 8px; right: 10px;
+      background: none;
+      border: none;
+      font-size: 17px;
+      color: var(--ink-mute);
+      cursor: pointer;
+      line-height: 1;
+      padding: 0;
+    }
+    .proj-item .remove-proj:hover { color: var(--danger); }
+
+    .add-proj-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      width: 100%;
+      padding: 9px;
+      border: 1px dashed var(--border-s);
+      border-radius: var(--r);
+      background: none;
+      color: var(--ink-soft);
+      font-size: 13px;
+      font-family: inherit;
+      cursor: pointer;
+      margin-top: 4px;
+      transition: background .12s;
+    }
+    .add-proj-btn:hover { background: var(--tint); color: var(--ink); }
+
+    /* ── SUBMIT ────────────────────────────────────────────── */
+    .mf-submit {
+      width: 100%;
+      padding: 13px;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: var(--r);
+      font-size: 15px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      transition: background .15s, transform .1s;
+      margin-top: 6px;
+      letter-spacing: 0.1px;
+    }
+    .mf-submit:hover { background: var(--accent-h); }
+    .mf-submit:active { transform: scale(.98); }
+    .mf-submit:disabled { opacity: .5; cursor: not-allowed; }
+
+    /* ── BANNER SUCCESSO / ERRORE ──────────────────────────── */
+    .mf-banner {
+      display: none;
+      border-radius: var(--r);
+      padding: 14px 18px;
+      margin-top: 14px;
+      font-size: 14px;
+      text-align: center;
+      line-height: 1.5;
+    }
+    .mf-banner.success {
+      background: var(--success-bg);
+      border: 1px solid rgba(14,107,69,.25);
+      color: var(--success);
+    }
+    .mf-banner.error {
+      background: #fdecea;
+      border: 1px solid rgba(192,57,43,.25);
+      color: var(--danger);
+    }
+
+    /* ── RESPONSIVE ────────────────────────────────────────── */
+    @media (max-width: 520px) {
+      body { padding: 12px 8px 36px; }
+      .row-2 { grid-template-columns: 1fr; }
+      .mf-card { padding: 16px 14px; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="mf-wrapper" id="mf-form-root">
+
+  <!-- ══════════════════════════════════════════════════════
+       CONFIGURAZIONE – modifica questi valori
+  ══════════════════════════════════════════════════════════ -->
+  <script>
+    const MF_CONFIG = {
+      // ① URL del deployment del tuo Google Apps Script (vedi istruzioni)
+      SCRIPT_URL: "https://script.google.com/macros/s/AKfycbwbLBwEYk8vOuN5hak1a9XSLoIUVOHXNNAMwVFdftWLsHRz6bYiGUBHl3l05e9L83Jg/exec",
+
+      // ② Titolo visualizzato nella testata del form
+      FORM_TITLE: "Sottoscrivi il Manifesto",
+
+      // ③ Sottotitolo
+      FORM_SUBTITLE: "Firma e unisciti all'iniziativa",
+
+      // ④ Testo del manifesto oppure URL della pagina dove è pubblicato
+      //    Se inizia con http/https viene mostrato come link
+      MANIFESTO_CONTENT: "https://INSERISCI_URL_MANIFESTO",
+
+      // ⑤ URL immagine testata (lascia vuoto per usare il titolo testuale)
+      HEADER_IMAGE_URL: "",
+
+      // ⑥ Testo della dichiarazione di firma
+      DECLARATION_TEXT: "Sottoscrivendo il presente modulo, dichiaro di aver letto e condividere i contenuti del manifesto, di esprimere la mia adesione in forma personale, e di acconsentire al trattamento dei miei dati personali ai sensi del GDPR (Regolamento UE 2016/679) per le sole finalità connesse alla presente iniziativa.",
+    };
+  </script>
+  <!-- ══════════════════════════════════════════════════════ -->
+
+
+  <!-- TESTATA -->
+  <div class="mf-header" id="mf-header">
+    <div class="mf-header-image" id="mf-header-image">
+      <div class="mf-header-fallback" id="mf-header-fallback">
+        <h2 id="mf-title-text"></h2>
+        <p id="mf-sub-text"></p>
+      </div>
+    </div>
+    <div class="mf-header-meta">
+      <div class="form-title" id="mf-form-title-meta"></div>
+      <div class="form-sub" id="mf-form-sub-meta"></div>
+    </div>
+  </div>
+
+  <!-- MANIFESTO -->
+  <div class="mf-card">
+    <div class="mf-section-title">
+      <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+        <polyline points="14 2 14 8 20 8"/>
+        <line x1="16" y1="13" x2="8" y2="13"/>
+        <line x1="16" y1="17" x2="8" y2="17"/>
+        <polyline points="10 9 9 9 8 9"/>
+      </svg>
+      Il manifesto
+    </div>
+    <div class="manifesto-box" id="mf-manifesto-box"></div>
+  </div>
+
+  <!-- DATI FIRMATARIO -->
+  <div class="mf-card">
+    <div class="mf-section-title">
+      <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+        <circle cx="12" cy="7" r="4"/>
+      </svg>
+      Dati del firmatario
+    </div>
+
+    <div class="row-2">
+      <div class="mf-field">
+        <label for="mf-nome">Nome <span class="req">*</span></label>
+        <input type="text" id="mf-nome" name="nome" autocomplete="given-name" placeholder="es. Maria" required>
+      </div>
+      <div class="mf-field">
+        <label for="mf-cognome">Cognome <span class="req">*</span></label>
+        <input type="text" id="mf-cognome" name="cognome" autocomplete="family-name" placeholder="es. Bianchi" required>
+      </div>
+    </div>
+
+    <div class="row-2">
+      <div class="mf-field">
+        <label for="mf-nascita">Data di nascita <span class="req">*</span></label>
+        <input type="date" id="mf-nascita" name="dataNascita" required>
+      </div>
+      <div class="mf-field">
+        <label for="mf-impiego">Impiego <span class="req">*</span></label>
+        <input type="text" id="mf-impiego" name="impiego" placeholder="es. Professore associato" required>
+      </div>
+    </div>
+
+    <div class="row-1 mf-field">
+      <label for="mf-istituzione">Afferenza istituzionale <span class="req">*</span></label>
+      <input type="text" id="mf-istituzione" name="istituzione"
+             placeholder="es. Università degli Studi di Roma La Sapienza, Dip. di Informatica" required>
+    </div>
+
+    <div class="row-1 mf-field">
+      <label for="mf-email">Email <span class="req">*</span>
+        <span style="font-weight:400;color:var(--ink-mute);font-size:11px;text-transform:none;letter-spacing:0;">
+          – necessaria per ricevere copia della firma
+        </span>
+      </label>
+      <input type="email" id="mf-email" name="email" autocomplete="email"
+             placeholder="es. nome.cognome@universita.it" required>
+    </div>
+  </div>
+
+  <!-- PROGETTI DIGITALI -->
+  <div class="mf-card">
+    <div class="mf-section-title">
+      <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <polyline points="16 18 22 12 16 6"/>
+        <polyline points="8 6 2 12 8 18"/>
+      </svg>
+      Progetti digitali <span class="badge-opt">opzionale</span>
+    </div>
+    <p style="font-size:13px;color:var(--ink-soft);margin-bottom:12px;">
+      Indica i progetti digitali che dirigi o ai quali partecipi.
+    </p>
+
+    <div id="mf-projects-list"></div>
+
+    <button type="button" class="add-proj-btn" onclick="mfAddProject()">
+      + Aggiungi un progetto
+    </button>
+  </div>
+
+  <!-- OPINIONI -->
+  <div class="mf-card">
+    <div class="mf-section-title">
+      <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+      </svg>
+      Opinioni e suggerimenti <span class="badge-opt">opzionale</span>
+    </div>
+    <div class="mf-field">
+      <textarea id="mf-opinioni" name="opinioni"
+        placeholder="Condividi osservazioni, commenti o suggerimenti sul manifesto…"></textarea>
+    </div>
+  </div>
+
+  <!-- DICHIARAZIONE & CONSENSI -->
+  <div class="mf-card">
+    <div class="mf-section-title">
+      <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <polyline points="20 6 9 17 4 12"/>
+      </svg>
+      Dichiarazione di firma
+    </div>
+
+    <div class="declaration-box" id="mf-declaration-box"></div>
+
+    <br>
+
+    <div class="check-row">
+      <input type="checkbox" id="mf-check-firma" required>
+      <label for="mf-check-firma">
+        Dichiaro di aver letto il manifesto e di sottoscrivere quanto in esso contenuto. <span style="color:var(--danger)">*</span>
+      </label>
+    </div>
+    <div class="check-row">
+      <input type="checkbox" id="mf-check-privacy" required>
+      <label for="mf-check-privacy">
+        Acconsento al trattamento dei miei dati personali per le finalità indicate. <span style="color:var(--danger)">*</span>
+      </label>
+    </div>
+    <div class="check-row">
+      <input type="checkbox" id="mf-check-copia" checked>
+      <label for="mf-check-copia">
+        Desidero ricevere una copia della mia firma via email.
+      </label>
+    </div>
+  </div>
+
+  <!-- BOTTONE INVIO -->
+  <button type="button" class="mf-submit" id="mf-submit-btn" onclick="mfHandleSubmit()">
+    Invia la sottoscrizione
+  </button>
+
+  <div class="mf-banner success" id="mf-success">
+    <strong>✓ Firma inviata con successo!</strong><br>
+    Grazie per aver sottoscritto il manifesto.<br>
+    Controlla la tua email per la copia di conferma.
+  </div>
+
+  <div class="mf-banner error" id="mf-error">
+    <strong>Si è verificato un errore.</strong><br>
+    <span id="mf-error-msg">Riprova tra qualche istante.</span>
+  </div>
+
+</div><!-- /mf-wrapper -->
+
+
+<script>
+/* ══════════════════════════════════════════════════════════
+   MANIFESTO FORM – logica JS
+══════════════════════════════════════════════════════════ */
+
+let mfProjCount = 0;
+
+// ── INIZIALIZZAZIONE ────────────────────────────────────────
+document.addEventListener("DOMContentLoaded", function () {
+  // Titolo
+  document.getElementById("mf-title-text").textContent       = MF_CONFIG.FORM_TITLE;
+  document.getElementById("mf-sub-text").textContent         = MF_CONFIG.FORM_SUBTITLE;
+  document.getElementById("mf-form-title-meta").textContent  = MF_CONFIG.FORM_TITLE;
+  document.getElementById("mf-form-sub-meta").textContent    = MF_CONFIG.FORM_SUBTITLE;
+
+  // Immagine testata
+  if (MF_CONFIG.HEADER_IMAGE_URL) {
+    const area = document.getElementById("mf-header-image");
+    area.classList.add("has-image");
+    const img = document.createElement("img");
+    img.src = MF_CONFIG.HEADER_IMAGE_URL;
+    img.alt = MF_CONFIG.FORM_TITLE;
+    area.appendChild(img);
+  }
+
+  // Manifesto
+  const mbox = document.getElementById("mf-manifesto-box");
+  const mc   = MF_CONFIG.MANIFESTO_CONTENT;
+  if (mc.startsWith("http")) {
+    mbox.innerHTML =
+      `Leggi il testo integrale del manifesto: <a href="${mc}" target="_blank" rel="noopener">` +
+      `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-1px" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>` +
+      ` Vai al manifesto</a>`;
+  } else {
+    mbox.innerHTML = mc.replace(/\n/g, "<br>");
+  }
+
+  // Dichiarazione
+  document.getElementById("mf-declaration-box").textContent = MF_CONFIG.DECLARATION_TEXT;
+});
+
+
+// ── GESTIONE PROGETTI ────────────────────────────────────────
+function mfAddProject() {
+  mfProjCount++;
+  const id  = "mf-proj-" + mfProjCount;
+  const div = document.createElement("div");
+  div.className = "proj-item";
+  div.id = id;
+  div.innerHTML = `
+    <button type="button" class="remove-proj" onclick="mfRemoveProject('${id}')" aria-label="Rimuovi progetto">×</button>
+    <div class="row-2" style="margin-bottom:8px;">
+      <div class="mf-field">
+        <label>Titolo del progetto</label>
+        <input type="text" class="proj-titolo" placeholder="es. Digital Humanities Lab">
+      </div>
+      <div class="mf-field">
+        <label>Link / URL</label>
+        <input type="url" class="proj-url" placeholder="https://…">
+      </div>
+    </div>
+    <div class="mf-field">
+      <label>Il tuo ruolo</label>
+      <input type="text" class="proj-ruolo" placeholder="es. Responsabile scientifico, Collaboratore…">
+    </div>`;
+  document.getElementById("mf-projects-list").appendChild(div);
+}
+
+function mfRemoveProject(id) {
+  const el = document.getElementById(id);
+  if (el) el.remove();
+}
+
+function mfGetProjects() {
+  return Array.from(document.querySelectorAll(".proj-item")).map(el => ({
+    titolo: el.querySelector(".proj-titolo").value.trim(),
+    url:    el.querySelector(".proj-url").value.trim(),
+    ruolo:  el.querySelector(".proj-ruolo").value.trim(),
+  })).filter(p => p.titolo || p.url);
+}
+
+
+// ── VALIDAZIONE ─────────────────────────────────────────────
+function mfValidate() {
+  let ok = true;
+  const ids = ["mf-nome","mf-cognome","mf-nascita","mf-impiego","mf-istituzione","mf-email"];
+  ids.forEach(function(id) {
+    const el = document.getElementById(id);
+    if (!el.value.trim()) {
+      el.classList.add("error");
+      ok = false;
+    } else {
+      el.classList.remove("error");
+    }
+  });
+  if (!document.getElementById("mf-check-firma").checked)   ok = false;
+  if (!document.getElementById("mf-check-privacy").checked) ok = false;
+  return ok;
+}
+
+
+// ── INVIO ────────────────────────────────────────────────────
+function mfHandleSubmit() {
+  document.getElementById("mf-success").style.display = "none";
+  document.getElementById("mf-error").style.display   = "none";
+
+  if (!mfValidate()) {
+    mfShowError("Compila tutti i campi obbligatori (marcati con *) e accetta le dichiarazioni.");
+    return;
+  }
+
+  const btn = document.getElementById("mf-submit-btn");
+  btn.disabled    = true;
+  btn.textContent = "Invio in corso…";
+
+  const payload = {
+    nome:           document.getElementById("mf-nome").value.trim(),
+    cognome:        document.getElementById("mf-cognome").value.trim(),
+    dataNascita:    document.getElementById("mf-nascita").value,
+    impiego:        document.getElementById("mf-impiego").value.trim(),
+    istituzione:    document.getElementById("mf-istituzione").value.trim(),
+    email:          document.getElementById("mf-email").value.trim(),
+    progetti:       mfGetProjects(),
+    opinioni:       document.getElementById("mf-opinioni").value.trim(),
+    inviaCopiaMail: document.getElementById("mf-check-copia").checked,
+  };
+
+  fetch(MF_CONFIG.SCRIPT_URL, {
+    method:  "POST",
+    mode:    "no-cors",          // Apps Script richiede no-cors
+    headers: { "Content-Type": "application/json" },
+    body:    JSON.stringify(payload),
+  })
+  .then(function() {
+    // Con no-cors non leggiamo la risposta, ma l'invio è avvenuto
+    mfShowSuccess();
+    mfResetForm();
+  })
+  .catch(function(err) {
+    mfShowError("Errore di rete: " + err.message);
+    btn.disabled    = false;
+    btn.textContent = "Invia la sottoscrizione";
+  });
+}
+
+function mfShowSuccess() {
+  const btn = document.getElementById("mf-submit-btn");
+  btn.disabled    = false;
+  btn.textContent = "Invia la sottoscrizione";
+  const banner = document.getElementById("mf-success");
+  banner.style.display = "block";
+  banner.scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
+function mfShowError(msg) {
+  document.getElementById("mf-error-msg").textContent = msg;
+  const banner = document.getElementById("mf-error");
+  banner.style.display = "block";
+  banner.scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
+function mfResetForm() {
+  ["mf-nome","mf-cognome","mf-nascita","mf-impiego","mf-istituzione","mf-email","mf-opinioni"]
+    .forEach(function(id) { document.getElementById(id).value = ""; });
+  document.getElementById("mf-check-firma").checked   = false;
+  document.getElementById("mf-check-privacy").checked = false;
+  document.getElementById("mf-check-copia").checked   = true;
+  document.getElementById("mf-projects-list").innerHTML = "";
+  mfProjCount = 0;
+}
+</script>
+
+</body>
+</html>
