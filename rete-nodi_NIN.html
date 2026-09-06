@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rete di relazioni</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;1,9..144,500;1,9..144,600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/vis-network/10.1.0/standalone/umd/vis-network.min.js"></script>
+
+<style>
+:root{
+  --paper: #EFEAE1;
+  --paper-alt: #F8F5EE;
+  --ink: #221F1A;
+  --ink-soft: #5A5546;
+  --accent: #2E3A55;
+  --accent-warm: #A97F2E;
+  --gruppo: #4B6B58;
+  --altro: #8A8578;
+  --line: #D8D0BC;
+  --danger: #8B3A3A;
+  --radius: 4px;
+}
+*{ box-sizing: border-box; }
+body{
+  margin:0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: 'Inter', -apple-system, sans-serif;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+h1,h2,h3{ font-family:'Fraunces', Georgia, serif; margin:0; }
+button{ font-family: inherit; }
+:focus-visible{ outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ---------- Masthead ---------- */
+.masthead{ padding: 40px 28px 22px; border-bottom: 1px solid var(--line); }
+.masthead h1{
+  font-size: clamp(1.7rem, 3vw, 2.3rem);
+  font-weight: 600; font-style: italic; letter-spacing: -0.01em; max-width: 20ch;
+}
+.masthead .intro{ margin-top: 12px; max-width: 70ch; font-size: 1rem; color: var(--ink-soft); }
+.masthead .intro p{ margin: 0; }
+
+/* ---------- Toolbar ---------- */
+.toolbar{
+  padding: 14px 28px; display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+  border-bottom: 1px solid var(--line); background: var(--paper-alt);
+}
+.toolbar input[type="search"]{
+  flex: 1 1 220px; max-width: 320px; padding: 8px 12px;
+  border: 1px solid var(--line); border-radius: var(--radius); font-size: 0.9rem; background:#fff;
+}
+.toolbar button.tool{
+  border:1px solid var(--line); background:#fff; color: var(--ink-soft);
+  padding: 7px 13px; border-radius: var(--radius); font-size:0.85rem; cursor:pointer;
+}
+.toolbar button.tool.active{ background: var(--ink); color: var(--paper-alt); border-color: var(--ink); }
+.legend{ display:flex; gap:12px; flex-wrap:wrap; margin-left:auto; align-items:center; }
+.legend .item{ display:flex; align-items:center; gap:6px; font-size:0.8rem; color: var(--ink-soft); }
+.legend .dot{ width:10px; height:10px; border-radius:50%; display:inline-block; }
+.count{ width:100%; font-size:0.78rem; color: var(--ink-soft); font-style: italic; margin-top: 2px; }
+
+/* ---------- Area grafo ---------- */
+.stage{ position: relative; height: 78vh; min-height: 480px; }
+#network{ width:100%; height:100%; background: var(--paper); }
+.state{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color: var(--ink-soft); }
+.state.error{ color: var(--danger); flex-direction:column; text-align:center; padding: 20px; }
+
+/* ---------- Pannello laterale ---------- */
+.panel{
+  position:absolute; top:0; right:-360px; width:340px; height:100%;
+  background: var(--paper-alt); border-left: 1px solid var(--line);
+  box-shadow: -6px 0 18px rgba(20,18,14,0.08);
+  transition: right .28s ease; overflow-y:auto; padding: 22px 22px 30px;
+}
+.panel.open{ right:0; }
+.panel .close{
+  position:absolute; top:14px; right:14px; background:none; border:none;
+  font-size:1.3rem; color: var(--ink-soft); cursor:pointer; line-height:1;
+}
+.panel .kind{ font-size:0.72rem; text-transform:none; font-style:italic; color: var(--accent-warm); }
+.panel h3{ font-size:1.25rem; font-weight:600; margin-top:6px; line-height:1.3; }
+.panel dl{ margin-top:16px; }
+.panel dt{ font-size:0.72rem; color: var(--ink-soft); font-style:italic; margin-top:10px; }
+.panel dd{ margin:2px 0 0; font-size:0.92rem; }
+.panel .neighbors{ margin-top:18px; }
+.panel .neighbors h4{ font-size:0.85rem; font-weight:600; margin-bottom:8px; }
+.panel .neighbors button{
+  display:block; width:100%; text-align:left; background:#fff; border:1px solid var(--line);
+  border-radius: var(--radius); padding: 8px 10px; margin-bottom:6px; font-size:0.85rem; cursor:pointer; color: var(--ink);
+}
+.panel .neighbors button:hover{ border-color: var(--accent); }
+.panel .neighbors .rel{ font-size:0.72rem; color: var(--ink-soft); font-style:italic; }
+</style>
+</head>
+<body>
+
+<!-- =====================================================================
+     TESTO DI APERTURA — sostituisci titolo e paragrafo con il tuo testo
+     ===================================================================== -->
+<header class="masthead">
+  <h1 id="rete-titolo">Rete di relazioni</h1>
+  <div class="intro" id="rete-intro">
+    <p>Sostituisci questo paragrafo con il testo introduttivo della rete: cosa rappresenta, come è costruita, come esplorarla.</p>
+  </div>
+</header>
+
+<div class="toolbar">
+  <input type="search" id="search" placeholder="Cerca un nome…" aria-label="Cerca nella rete">
+  <button class="tool active" id="physicsToggle">Fisica: on</button>
+  <button class="tool" id="resetView">Adatta alla vista</button>
+  <div class="legend" id="legend"></div>
+  <div class="count" id="count"></div>
+</div>
+
+<div class="stage">
+  <div id="network"></div>
+  <div class="state" id="loading">Caricamento della rete…</div>
+  <aside class="panel" id="panel">
+    <button class="close" id="panelClose" aria-label="Chiudi">&times;</button>
+    <div id="panelBody"></div>
+  </aside>
+</div>
+
+<script>
+/* =====================================================================
+   CONFIGURAZIONE — modifica solo questa parte
+   ===================================================================== */
+const CONFIG = {
+  nodiUrl: "https://docs.google.com/spreadsheets/d/1fALYR2tXJE15oPeTBnXbUVy00ouHE_bFzp67S2gosjY/gviz/tq?tqx=out:csv&gid=378951882",
+  connessioniUrl: "https://docs.google.com/spreadsheets/d/1fALYR2tXJE15oPeTBnXbUVy00ouHE_bFzp67S2gosjY/gviz/tq?tqx=out:csv&gid=434015411",
+
+  columnsNodi: {
+    id:          ["id"],
+    nome:        ["nome", "name", "label", "etichetta"],
+    professione: ["professione", "profession"],
+    nazionalita: ["nazionalita", "nazionalità", "nationality"],
+    residenza:   ["residenza", "luogo", "location"],
+    anno:        ["anno", "year"],
+    fonti:       ["fonti", "fonte", "source", "sources"],
+    tipo:        ["tipo", "type"]
+  },
+  columnsConnessioni: {
+    from:  ["id a", "ida", "source", "from", "origine"],
+    to:    ["id b", "idb", "target", "to", "destinazione"],
+    tipo:  ["tipo", "type", "relazione"],
+    fonti: ["fonti", "fonte", "source"]
+  },
+
+  // Etichette e colori per le categorie dedotte dal prefisso dell'id (crs_/bst_/nin_).
+  // Aggiungi o modifica i prefissi qui se il tuo schema di id è diverso.
+  categorie: {
+    persona:       { match: p => p.startsWith("crs"), label: "Persona",      color: "#2E3A55" },
+    imbarcazione:  { match: p => p.startsWith("bst"), label: "Imbarcazione", color: "#A97F2E" },
+    gruppo:        { match: p => p.startsWith("nin"), label: "Gruppo",       color: "#4B6B58" },
+    altro:         { match: () => true,               label: "Altro",       color: "#8A8578" }
+  }
+};
+
+/* ---------- Utility ---------- */
+function normalizeHeader(h){
+  return (h || "").toString().trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
+function findField(row, aliases){
+  for (const key in row){
+    const nk = normalizeHeader(key);
+    if (aliases.some(a => normalizeHeader(a) === nk)) return (row[key] || "").toString().trim();
+  }
+  return "";
+}
+function parseCSV(url){
+  return new Promise((resolve, reject) => {
+    Papa.parse(url, {
+      download: true, header: true, skipEmptyLines: true,
+      complete: (res) => resolve(res.data || []),
+      error: (err) => reject(err)
+    });
+  });
+}
+function truncate(s, n){ return (s && s.length > n) ? s.slice(0, n - 1) + "…" : (s || ""); }
+function categoryOf(id){
+  const p = (id || "").toLowerCase();
+  for (const key in CONFIG.categorie){
+    if (CONFIG.categorie[key].match(p)) return key;
+  }
+  return "altro";
+}
+
+/* ---------- Stato globale ---------- */
+let network, nodesDS, edgesDS;
+let nodesRaw = {};      // id -> dati completi del nodo
+let edgesRaw = [];      // elenco completo degli archi
+let neighborsOf = {};   // id -> [{id, relTipo}]
+let physicsOn = true;
+
+/* ---------- Caricamento dati ---------- */
+async function loadData(){
+  if (!CONFIG.nodiUrl.includes("http") || !CONFIG.connessioniUrl.includes("http")){
+    showError("Configurazione mancante", "Inserisci gli URL CSV di CONFIG.nodiUrl e CONFIG.connessioniUrl.");
+    return;
+  }
+  try{
+    const [nodiRows, connRows] = await Promise.all([
+      parseCSV(CONFIG.nodiUrl),
+      parseCSV(CONFIG.connessioniUrl)
+    ]);
+    buildGraph(nodiRows, connRows);
+  }catch(err){
+    showError("Impossibile leggere i fogli", "Verifica che entrambi gli URL siano CSV pubblicati (Pubblica sul web, foglio singolo). Dettaglio: " + err.message);
+  }
+}
+
+function showError(title, detail){
+  document.getElementById("loading").outerHTML = `
+    <div class="state error"><strong>${title}</strong><div style="font-size:0.85rem;margin-top:8px;opacity:0.85;">${detail}</div></div>`;
+}
+
+function buildGraph(nodiRows, connRows){
+  // --- Nodi: unione con merge in caso di id duplicati nel foglio ---
+  nodiRows.forEach(r => {
+    const id = findField(r, CONFIG.columnsNodi.id);
+    if (!id) return;
+    const entry = {
+      nome: findField(r, CONFIG.columnsNodi.nome),
+      professione: findField(r, CONFIG.columnsNodi.professione),
+      nazionalita: findField(r, CONFIG.columnsNodi.nazionalita),
+      residenza: findField(r, CONFIG.columnsNodi.residenza),
+      anno: findField(r, CONFIG.columnsNodi.anno),
+      fonti: findField(r, CONFIG.columnsNodi.fonti),
+      tipo: findField(r, CONFIG.columnsNodi.tipo)
+    };
+    if (nodesRaw[id]){
+      // Riga duplicata per lo stesso id: unisce i valori distinti invece di sovrascrivere
+      const prev = nodesRaw[id];
+      for (const k in entry){
+        if (entry[k] && prev[k] && !prev[k].includes(entry[k])) prev[k] += " / " + entry[k];
+        else if (entry[k] && !prev[k]) prev[k] = entry[k];
+      }
+    } else {
+      nodesRaw[id] = entry;
+    }
+  });
+
+  // --- Archi: scarta quelli con estremi mancanti o sconosciuti ---
+  let skipped = 0;
+  connRows.forEach((r, idx) => {
+    const from = findField(r, CONFIG.columnsConnessioni.from);
+    const to = findField(r, CONFIG.columnsConnessioni.to);
+    const tipo = findField(r, CONFIG.columnsConnessioni.tipo);
+    const fonti = findField(r, CONFIG.columnsConnessioni.fonti);
+    if (!from || !to || !nodesRaw[from] || !nodesRaw[to]){ skipped++; return; }
+    edgesRaw.push({ id: "e" + idx, from, to, tipo, fonti });
+  });
+
+  // --- Grado di ciascun nodo (per dimensionare i pallini) ---
+  const degree = {};
+  edgesRaw.forEach(e => {
+    degree[e.from] = (degree[e.from] || 0) + 1;
+    degree[e.to] = (degree[e.to] || 0) + 1;
+    (neighborsOf[e.from] = neighborsOf[e.from] || []).push({ id: e.to, tipo: e.tipo });
+    (neighborsOf[e.to] = neighborsOf[e.to] || []).push({ id: e.from, tipo: e.tipo });
+  });
+
+  // --- Dataset per vis-network ---
+  const visNodes = Object.keys(nodesRaw).map(id => {
+    const n = nodesRaw[id];
+    const cat = categoryOf(id);
+    return {
+      id,
+      label: truncate(n.nome || id, 26),
+      group: cat,
+      value: degree[id] || 1,
+      title: n.nome || id
+    };
+  });
+  const visEdges = edgesRaw.map(e => ({
+    id: e.id, from: e.from, to: e.to,
+    label: e.tipo || "",
+    title: e.tipo || ""
+  }));
+
+  nodesDS = new vis.DataSet(visNodes);
+  edgesDS = new vis.DataSet(visEdges);
+
+  renderLegend();
+  renderNetwork();
+
+  document.getElementById("loading").style.display = "none";
+  const skipNote = skipped ? ` · ${skipped} collegamenti ignorati (riferimenti a id mancanti)` : "";
+  document.getElementById("count").textContent =
+    `${visNodes.length} nodi · ${visEdges.length} collegamenti${skipNote}`;
+}
+
+/* ---------- Legenda ---------- */
+function renderLegend(){
+  const legend = document.getElementById("legend");
+  legend.innerHTML = Object.entries(CONFIG.categorie).map(([key, c]) => `
+    <span class="item"><span class="dot" style="background:${c.color}"></span>${c.label}</span>
+  `).join("");
+}
+
+/* ---------- Rete ---------- */
+function renderNetwork(){
+  const container = document.getElementById("network");
+  const groups = {};
+  Object.entries(CONFIG.categorie).forEach(([key, c]) => {
+    groups[key] = { color: { background: c.color, border: "rgba(0,0,0,0.25)", highlight: { background: c.color, border: "#221F1A" } } };
+  });
+
+  const options = {
+    nodes: {
+      shape: "dot",
+      scaling: { min: 8, max: 30 },
+      font: { face: "Inter", size: 12, color: "#221F1A" },
+      borderWidth: 1
+    },
+    edges: {
+      color: { color: "rgba(90,85,70,0.45)", highlight: "#2E3A55", hover: "#2E3A55" },
+      width: 1,
+      smooth: { type: "continuous" },
+      font: { size: 9, color: "#5A5546", strokeWidth: 0, align: "top" },
+      arrows: { to: { enabled: true, scaleFactor: 0.35 } }
+    },
+    groups,
+    physics: {
+      barnesHut: { gravitationalConstant: -2800, springLength: 110, springConstant: 0.05, damping: 0.25 },
+      stabilization: { iterations: 250 }
+    },
+    interaction: { hover: true, tooltipDelay: 150, keyboard: true }
+  };
+
+  network = new vis.Network(container, { nodes: nodesDS, edges: edgesDS }, options);
+
+  network.on("click", (params) => {
+    if (params.nodes.length){ openNodePanel(params.nodes[0]); }
+    else if (params.edges.length){ openEdgePanel(params.edges[0]); }
+    else { closePanel(); }
+  });
+}
+
+/* ---------- Pannello dettaglio ---------- */
+const panel = document.getElementById("panel");
+const panelBody = document.getElementById("panelBody");
+
+function openNodePanel(id){
+  const n = nodesRaw[id];
+  if (!n) return;
+  const cat = categoryOf(id);
+  const catLabel = CONFIG.categorie[cat].label;
+
+  const neigh = (neighborsOf[id] || []);
+  const neighHtml = neigh.length ? neigh.map(x => `
+    <button data-id="${x.id}">
+      ${(nodesRaw[x.id] && nodesRaw[x.id].nome) || x.id}
+      ${x.tipo ? `<div class="rel">${x.tipo}</div>` : ""}
+    </button>`).join("") : "<p style='font-size:0.85rem;color:var(--ink-soft);'>Nessun collegamento registrato.</p>";
+
+  panelBody.innerHTML = `
+    <div class="kind">${catLabel}</div>
+    <h3>${n.nome || id}</h3>
+    <dl>
+      ${n.professione ? `<dt>Professione</dt><dd>${n.professione}</dd>` : ""}
+      ${n.nazionalita ? `<dt>Nazionalità</dt><dd>${n.nazionalita}</dd>` : ""}
+      ${n.residenza ? `<dt>Residenza</dt><dd>${n.residenza}</dd>` : ""}
+      ${n.anno ? `<dt>Anno</dt><dd>${n.anno}</dd>` : ""}
+      ${n.tipo ? `<dt>Tipo</dt><dd>${n.tipo}</dd>` : ""}
+      ${n.fonti ? `<dt>Fonti</dt><dd>${n.fonti}</dd>` : ""}
+    </dl>
+    <div class="neighbors">
+      <h4>Collegamenti (${neigh.length})</h4>
+      ${neighHtml}
+    </div>
+  `;
+  wireNeighborButtons();
+  panel.classList.add("open");
+  network.selectNodes([id]);
+  network.focus(id, { scale: 1.1, animation: { duration: 400 } });
+}
+
+function openEdgePanel(edgeId){
+  const e = edgesRaw.find(x => x.id === edgeId);
+  if (!e) return;
+  const a = nodesRaw[e.from], b = nodesRaw[e.to];
+  panelBody.innerHTML = `
+    <div class="kind">Collegamento</div>
+    <h3>${e.tipo || "Relazione"}</h3>
+    <dl>
+      ${e.fonti ? `<dt>Fonti</dt><dd>${e.fonti}</dd>` : ""}
+    </dl>
+    <div class="neighbors">
+      <h4>Tra</h4>
+      <button data-id="${e.from}">${(a && a.nome) || e.from}</button>
+      <button data-id="${e.to}">${(b && b.nome) || e.to}</button>
+    </div>
+  `;
+  wireNeighborButtons();
+  panel.classList.add("open");
+  network.selectEdges([edgeId]);
+}
+
+function wireNeighborButtons(){
+  panelBody.querySelectorAll(".neighbors button").forEach(btn => {
+    btn.addEventListener("click", () => openNodePanel(btn.dataset.id));
+  });
+}
+function closePanel(){ panel.classList.remove("open"); network && network.unselectAll(); }
+document.getElementById("panelClose").addEventListener("click", closePanel);
+
+/* ---------- Ricerca ---------- */
+document.getElementById("search").addEventListener("input", (e) => {
+  const q = normalizeHeader(e.target.value);
+  if (!nodesDS) return;
+  const updates = Object.keys(nodesRaw).map(id => {
+    const match = !q || normalizeHeader(nodesRaw[id].nome || id).includes(q);
+    const cat = categoryOf(id);
+    const baseColor = CONFIG.categorie[cat].color;
+    return {
+      id,
+      color: match ? { background: baseColor, border: "rgba(0,0,0,0.25)" }
+                    : { background: "rgba(217,209,188,0.5)", border: "rgba(217,209,188,0.6)" },
+      font: { color: match ? "#221F1A" : "rgba(90,85,70,0.35)" }
+    };
+  });
+  nodesDS.update(updates);
+});
+
+/* ---------- Controlli ---------- */
+document.getElementById("physicsToggle").addEventListener("click", (e) => {
+  physicsOn = !physicsOn;
+  network.setOptions({ physics: { enabled: physicsOn } });
+  e.target.textContent = "Fisica: " + (physicsOn ? "on" : "off");
+  e.target.classList.toggle("active", physicsOn);
+});
+document.getElementById("resetView").addEventListener("click", () => {
+  network && network.fit({ animation: true });
+});
+
+loadData();
+</script>
+</body>
+</html>
