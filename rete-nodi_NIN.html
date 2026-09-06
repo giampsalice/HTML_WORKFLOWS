@@ -60,7 +60,7 @@ button{ font-family: inherit; }
   padding: 7px 13px; border-radius: var(--radius); font-size:0.85rem; cursor:pointer;
 }
 .toolbar button.tool.active{ background: var(--ink); color: var(--paper-alt); border-color: var(--ink); }
-.legend{ display:flex; gap:12px; flex-wrap:wrap; margin-left:auto; align-items:center; }
+.legend{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; width:100%; margin-top:6px; }
 .legend .item{ display:flex; align-items:center; gap:6px; font-size:0.8rem; color: var(--ink-soft); }
 .legend .dot{ width:10px; height:10px; border-radius:50%; display:inline-block; }
 .count{ width:100%; font-size:0.78rem; color: var(--ink-soft); font-style: italic; margin-top: 2px; }
@@ -132,8 +132,8 @@ button{ font-family: inherit; }
    CONFIGURAZIONE — modifica solo questa parte
    ===================================================================== */
 const CONFIG = {
-  nodiUrl: "https://docs.google.com/spreadsheets/d/1fALYR2tXJE15oPeTBnXbUVy00ouHE_bFzp67S2gosjY/gviz/tq?tqx=out:csv&gid=378951882",
-  connessioniUrl: "https://docs.google.com/spreadsheets/d/1fALYR2tXJE15oPeTBnXbUVy00ouHE_bFzp67S2gosjY/gviz/tq?tqx=out:csv&gid=434015411",
+  nodiUrl: "https://docs.google.com/spreadsheets/d/e/2PACX-1vRxZ1JcJy6VdGQnt3oy0v_xm4tqQSfombk-lw9rS0eQiPDg7_tO-GHxdFPaOR0wHqwdDyCRgYbZZPAZ/pub?gid=378951882&single=true&output=csv",
+  connessioniUrl: "https://docs.google.com/spreadsheets/d/e/2PACX-1vRxZ1JcJy6VdGQnt3oy0v_xm4tqQSfombk-lw9rS0eQiPDg7_tO-GHxdFPaOR0wHqwdDyCRgYbZZPAZ/pub?gid=434015411&single=true&output=csv",
 
   columnsNodi: {
     id:          ["id"],
@@ -149,18 +149,30 @@ const CONFIG = {
     from:  ["id a", "ida", "source", "from", "origine"],
     to:    ["id b", "idb", "target", "to", "destinazione"],
     tipo:  ["tipo", "type", "relazione"],
+    anno:  ["anno", "year"],
     fonti: ["fonti", "fonte", "source"]
   },
 
-  // Etichette e colori per le categorie dedotte dal prefisso dell'id (crs_/bst_/nin_).
-  // Aggiungi o modifica i prefissi qui se il tuo schema di id è diverso.
+  // Etichette e FORME per le categorie dedotte dal prefisso dell'id (crs_/bst_/nin_).
+  // Il colore dei nodi è invece assegnato dinamicamente in base alla nazionalità (vedi PALETTE).
   categorie: {
-    persona:       { match: p => p.startsWith("crs"), label: "Persona",      color: "#2E3A55" },
-    imbarcazione:  { match: p => p.startsWith("bst"), label: "Imbarcazione", color: "#A97F2E" },
-    gruppo:        { match: p => p.startsWith("nin"), label: "Gruppo",       color: "#4B6B58" },
-    altro:         { match: () => true,               label: "Altro",       color: "#8A8578" }
+    persona:       { match: p => p.startsWith("crs"), label: "Persona",      shape: "dot",      glyph: "●" },
+    imbarcazione:  { match: p => p.startsWith("bst"), label: "Imbarcazione", shape: "square",   glyph: "■" },
+    gruppo:        { match: p => p.startsWith("nin"), label: "Gruppo",       shape: "triangle", glyph: "▲" },
+    altro:         { match: () => true,               label: "Altro",       shape: "diamond",  glyph: "◆" }
   }
 };
+
+// Tavolozza usata per colorare dinamicamente nazionalità (nodi) e tipo di legame (linee).
+// Se i valori distinti superano la lunghezza dell'array, i colori si ripetono ciclicamente.
+const PALETTE = ["#2E3A55","#A97F2E","#4B6B58","#8B3A3A","#5B4B8A","#3E7C8C","#B5652D","#6B5B3E","#7A4B6B","#3F6B3F"];
+const NEUTRAL_COLOR = "#B9B2A0";
+function buildColorMap(values){
+  const distinct = [...new Set(values.filter(v => v))].sort((a,b) => a.localeCompare(b, "it"));
+  const map = {};
+  distinct.forEach((v, i) => { map[v] = PALETTE[i % PALETTE.length]; });
+  return map;
+}
 
 /* ---------- Utility ---------- */
 function normalizeHeader(h){
@@ -195,7 +207,9 @@ function categoryOf(id){
 let network, nodesDS, edgesDS;
 let nodesRaw = {};      // id -> dati completi del nodo
 let edgesRaw = [];      // elenco completo degli archi
-let neighborsOf = {};   // id -> [{id, relTipo}]
+let neighborsOf = {};   // id -> [{id, tipo, anno}]
+let nazioColors = {};   // nazionalità -> colore
+let tipoColors = {};    // tipo di legame -> colore
 let physicsOn = true;
 
 /* ---------- Caricamento dati ---------- */
@@ -252,9 +266,10 @@ function buildGraph(nodiRows, connRows){
     const from = findField(r, CONFIG.columnsConnessioni.from);
     const to = findField(r, CONFIG.columnsConnessioni.to);
     const tipo = findField(r, CONFIG.columnsConnessioni.tipo);
+    const anno = findField(r, CONFIG.columnsConnessioni.anno);
     const fonti = findField(r, CONFIG.columnsConnessioni.fonti);
     if (!from || !to || !nodesRaw[from] || !nodesRaw[to]){ skipped++; return; }
-    edgesRaw.push({ id: "e" + idx, from, to, tipo, fonti });
+    edgesRaw.push({ id: "e" + idx, from, to, tipo, anno, fonti });
   });
 
   // --- Grado di ciascun nodo (per dimensionare i pallini) ---
@@ -262,27 +277,38 @@ function buildGraph(nodiRows, connRows){
   edgesRaw.forEach(e => {
     degree[e.from] = (degree[e.from] || 0) + 1;
     degree[e.to] = (degree[e.to] || 0) + 1;
-    (neighborsOf[e.from] = neighborsOf[e.from] || []).push({ id: e.to, tipo: e.tipo });
-    (neighborsOf[e.to] = neighborsOf[e.to] || []).push({ id: e.from, tipo: e.tipo });
+    (neighborsOf[e.from] = neighborsOf[e.from] || []).push({ id: e.to, tipo: e.tipo, anno: e.anno });
+    (neighborsOf[e.to] = neighborsOf[e.to] || []).push({ id: e.from, tipo: e.tipo, anno: e.anno });
   });
+
+  // --- Mappe colore dinamiche: nazionalità (nodi) e tipo di legame (archi) ---
+  nazioColors = buildColorMap(Object.values(nodesRaw).map(n => n.nazionalita));
+  tipoColors = buildColorMap(edgesRaw.map(e => e.tipo));
 
   // --- Dataset per vis-network ---
   const visNodes = Object.keys(nodesRaw).map(id => {
     const n = nodesRaw[id];
     const cat = categoryOf(id);
+    const color = n.nazionalita ? nazioColors[n.nazionalita] : NEUTRAL_COLOR;
     return {
       id,
       label: truncate(n.nome || id, 26),
-      group: cat,
+      shape: CONFIG.categorie[cat].shape,
+      color: { background: color, border: "rgba(0,0,0,0.28)", highlight: { background: color, border: "#221F1A" } },
       value: degree[id] || 1,
       title: n.nome || id
     };
   });
-  const visEdges = edgesRaw.map(e => ({
-    id: e.id, from: e.from, to: e.to,
-    label: e.tipo || "",
-    title: e.tipo || ""
-  }));
+  const visEdges = edgesRaw.map(e => {
+    const label = [e.tipo, e.anno].filter(Boolean).join(" · ");
+    const color = e.tipo ? tipoColors[e.tipo] : NEUTRAL_COLOR;
+    return {
+      id: e.id, from: e.from, to: e.to,
+      label,
+      title: label,
+      color: { color, highlight: "#221F1A", hover: "#221F1A" }
+    };
+  });
 
   nodesDS = new vis.DataSet(visNodes);
   edgesDS = new vis.DataSet(visEdges);
@@ -299,18 +325,29 @@ function buildGraph(nodiRows, connRows){
 /* ---------- Legenda ---------- */
 function renderLegend(){
   const legend = document.getElementById("legend");
-  legend.innerHTML = Object.entries(CONFIG.categorie).map(([key, c]) => `
-    <span class="item"><span class="dot" style="background:${c.color}"></span>${c.label}</span>
+
+  const categoriaHtml = Object.values(CONFIG.categorie).map(c => `
+    <span class="item"><span style="display:inline-block;width:14px;text-align:center;color:var(--ink-soft);">${c.glyph}</span>${c.label}</span>
   `).join("");
+
+  const nazioHtml = Object.entries(nazioColors).map(([val, color]) => `
+    <span class="item"><span class="dot" style="background:${color}"></span>${val}</span>
+  `).join("") + `<span class="item"><span class="dot" style="background:${NEUTRAL_COLOR}"></span>Non specificata</span>`;
+
+  const tipoHtml = Object.entries(tipoColors).map(([val, color]) => `
+    <span class="item"><span style="display:inline-block;width:14px;height:2px;background:${color};"></span>${val}</span>
+  `).join("");
+
+  legend.innerHTML = `
+    <span style="font-size:0.72rem;color:var(--ink-soft);font-style:italic;">Categoria:</span> ${categoriaHtml}
+    <span style="font-size:0.72rem;color:var(--ink-soft);font-style:italic;margin-left:10px;">Nazionalità:</span> ${nazioHtml}
+    <span style="font-size:0.72rem;color:var(--ink-soft);font-style:italic;margin-left:10px;">Legame:</span> ${tipoHtml}
+  `;
 }
 
 /* ---------- Rete ---------- */
 function renderNetwork(){
   const container = document.getElementById("network");
-  const groups = {};
-  Object.entries(CONFIG.categorie).forEach(([key, c]) => {
-    groups[key] = { color: { background: c.color, border: "rgba(0,0,0,0.25)", highlight: { background: c.color, border: "#221F1A" } } };
-  });
 
   const options = {
     nodes: {
@@ -320,13 +357,12 @@ function renderNetwork(){
       borderWidth: 1
     },
     edges: {
-      color: { color: "rgba(90,85,70,0.45)", highlight: "#2E3A55", hover: "#2E3A55" },
-      width: 1,
+      color: { color: "rgba(90,85,70,0.45)", highlight: "#221F1A", hover: "#221F1A" },
+      width: 1.4,
       smooth: { type: "continuous" },
       font: { size: 9, color: "#5A5546", strokeWidth: 0, align: "top" },
       arrows: { to: { enabled: true, scaleFactor: 0.35 } }
     },
-    groups,
     physics: {
       barnesHut: { gravitationalConstant: -2800, springLength: 110, springConstant: 0.05, damping: 0.25 },
       stabilization: { iterations: 250 }
@@ -354,11 +390,14 @@ function openNodePanel(id){
   const catLabel = CONFIG.categorie[cat].label;
 
   const neigh = (neighborsOf[id] || []);
-  const neighHtml = neigh.length ? neigh.map(x => `
+  const neighHtml = neigh.length ? neigh.map(x => {
+    const relLabel = [x.tipo, x.anno].filter(Boolean).join(" · ");
+    return `
     <button data-id="${x.id}">
       ${(nodesRaw[x.id] && nodesRaw[x.id].nome) || x.id}
-      ${x.tipo ? `<div class="rel">${x.tipo}</div>` : ""}
-    </button>`).join("") : "<p style='font-size:0.85rem;color:var(--ink-soft);'>Nessun collegamento registrato.</p>";
+      ${relLabel ? `<div class="rel">${relLabel}</div>` : ""}
+    </button>`;
+  }).join("") : "<p style='font-size:0.85rem;color:var(--ink-soft);'>Nessun collegamento registrato.</p>";
 
   panelBody.innerHTML = `
     <div class="kind">${catLabel}</div>
@@ -390,6 +429,7 @@ function openEdgePanel(edgeId){
     <div class="kind">Collegamento</div>
     <h3>${e.tipo || "Relazione"}</h3>
     <dl>
+      ${e.anno ? `<dt>Anno</dt><dd>${e.anno}</dd>` : ""}
       ${e.fonti ? `<dt>Fonti</dt><dd>${e.fonti}</dd>` : ""}
     </dl>
     <div class="neighbors">
@@ -417,11 +457,11 @@ document.getElementById("search").addEventListener("input", (e) => {
   if (!nodesDS) return;
   const updates = Object.keys(nodesRaw).map(id => {
     const match = !q || normalizeHeader(nodesRaw[id].nome || id).includes(q);
-    const cat = categoryOf(id);
-    const baseColor = CONFIG.categorie[cat].color;
+    const n = nodesRaw[id];
+    const baseColor = n.nazionalita ? nazioColors[n.nazionalita] : NEUTRAL_COLOR;
     return {
       id,
-      color: match ? { background: baseColor, border: "rgba(0,0,0,0.25)" }
+      color: match ? { background: baseColor, border: "rgba(0,0,0,0.28)" }
                     : { background: "rgba(217,209,188,0.5)", border: "rgba(217,209,188,0.6)" },
       font: { color: match ? "#221F1A" : "rgba(90,85,70,0.35)" }
     };
