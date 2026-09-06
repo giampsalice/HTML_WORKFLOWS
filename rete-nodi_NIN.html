@@ -106,8 +106,7 @@ button{ font-family: inherit; }
 <header class="masthead">
   <h1 id="rete-titolo">Arcipelago Corsaro</h1>
   <div class="intro" id="rete-intro">
-    <p>Il grafico mostra le reti di circolazione e redistribuzione della ricchezza che collegavano la produzione rurale e il corso marittimo nello spazio sard-maltese del XVIII secolo
-</p>
+    <p>Il grafico mostra le reti di circolazione e redistribuzione della ricchezza che collegavano la produzione rurale e il corso marittimo nello spazio sardo-maltese del XVIII secolo</p>
   </div>
 </header>
 
@@ -137,14 +136,16 @@ const CONFIG = {
   connessioniUrl: "https://docs.google.com/spreadsheets/d/e/2PACX-1vRxZ1JcJy6VdGQnt3oy0v_xm4tqQSfombk-lw9rS0eQiPDg7_tO-GHxdFPaOR0wHqwdDyCRgYbZZPAZ/pub?gid=434015411&single=true&output=csv",
 
   columnsNodi: {
-    id:          ["id"],
-    nome:        ["nome", "name", "label", "etichetta"],
-    professione: ["professione", "profession"],
-    nazionalita: ["nazionalita", "nazionalità", "nationality"],
-    residenza:   ["residenza", "luogo", "location"],
-    anno:        ["anno", "year"],
-    fonti:       ["fonti", "fonte", "source", "sources"],
-    tipo:        ["tipo", "type"]
+    id:               ["id"],
+    nome:             ["nome", "name", "label", "etichetta"],
+    professione:      ["professione", "profession"],
+    nazionalita:      ["nazionalita", "nazionalità", "nationality"],
+    residenza:        ["residenza", "luogo", "location"],
+    anno:             ["anno", "year"],
+    fonti:            ["fonti", "fonte", "source", "sources"],
+    tipo:             ["tipo", "type"],
+    altreQualifiche:  ["altre qualifiche", "qualifiche", "altre qualifica"],
+    note:             ["note", "nota", "notes"]
   },
   columnsConnessioni: {
     from:  ["id a", "ida", "source", "from", "origine"],
@@ -276,7 +277,9 @@ function buildGraph(nodiRows, connRows){
       residenza: findField(r, CONFIG.columnsNodi.residenza),
       anno: findField(r, CONFIG.columnsNodi.anno),
       fonti: findField(r, CONFIG.columnsNodi.fonti),
-      tipo: findField(r, CONFIG.columnsNodi.tipo)
+      tipo: findField(r, CONFIG.columnsNodi.tipo),
+      altreQualifiche: findField(r, CONFIG.columnsNodi.altreQualifiche),
+      note: findField(r, CONFIG.columnsNodi.note)
     };
     if (nodesRaw[id]){
       // Riga duplicata per lo stesso id: unisce i valori distinti invece di sovrascrivere
@@ -437,11 +440,13 @@ function openNodePanel(id){
     <h3>${n.nome || id}</h3>
     <dl>
       ${n.professione ? `<dt>Professione</dt><dd>${n.professione}</dd>` : ""}
+      ${n.altreQualifiche ? `<dt>Altre qualifiche</dt><dd>${n.altreQualifiche}</dd>` : ""}
       ${n.nazionalita ? `<dt>Nazionalità</dt><dd>${n.nazionalita}</dd>` : ""}
       ${n.residenza ? `<dt>Residenza</dt><dd>${n.residenza}</dd>` : ""}
       ${n.anno ? `<dt>Anno</dt><dd>${n.anno}</dd>` : ""}
       ${n.tipo ? `<dt>Tipo</dt><dd>${n.tipo}</dd>` : ""}
       ${n.fonti ? `<dt>Fonti</dt><dd>${n.fonti}</dd>` : ""}
+      ${n.note ? `<dt>Note</dt><dd>${n.note}</dd>` : ""}
     </dl>
     <div class="neighbors">
       <h4>Collegamenti (${neigh.length})</h4>
