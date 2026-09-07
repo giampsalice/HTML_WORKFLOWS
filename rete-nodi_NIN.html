@@ -199,10 +199,23 @@ CONFIG.categorie = {
 const PALETTE = ["#2E3A55","#A97F2E","#4B6B58","#8B3A3A","#5B4B8A","#3E7C8C","#B5652D","#6B5B3E","#7A4B6B","#3F6B3F"];
 const NEUTRAL_COLOR = "#B9B2A0";
 function buildColorMap(values){
-  const distinct = [...new Set(values.filter(v => v))].sort((a,b) => a.localeCompare(b, "it"));
-  const map = {};
-  distinct.forEach((v, i) => { map[v] = PALETTE[i % PALETTE.length]; });
-  return map;
+  // Raggruppa i valori ignorando maiuscole/minuscole e accenti (es. "Sardo" e "sardo" diventano un'unica voce).
+  const canonical = {};   // chiave normalizzata -> etichetta da mostrare (la prima incontrata)
+  const order = [];
+  values.forEach(v => {
+    if (!v) return;
+    const key = normalizeHeader(v);
+    if (!(key in canonical)){ canonical[key] = v.trim(); order.push(key); }
+  });
+  order.sort((a, b) => canonical[a].localeCompare(canonical[b], "it"));
+  const colorByKey = {};
+  const labelByKey = {};
+  order.forEach((key, i) => { colorByKey[key] = PALETTE[i % PALETTE.length]; labelByKey[key] = canonical[key]; });
+  return { colorByKey, labelByKey };
+}
+function colorFor(map, value){
+  if (!value) return NEUTRAL_COLOR;
+  return map.colorByKey[normalizeHeader(value)] || NEUTRAL_COLOR;
 }
 
 /* ---------- Utility ---------- */
@@ -239,8 +252,8 @@ let network, nodesDS, edgesDS;
 let nodesRaw = {};      // id -> dati completi del nodo
 let edgesRaw = [];      // elenco completo degli archi
 let neighborsOf = {};   // id -> [{id, tipo, anno}]
-let nazioColors = {};   // nazionalità -> colore
-let tipoColors = {};    // tipo di legame -> colore
+let nazioColors = { colorByKey: {}, labelByKey: {} };   // nazionalità -> colore
+let tipoColors = { colorByKey: {}, labelByKey: {} };    // tipo di legame -> colore
 let physicsOn = true;
 
 /* ---------- Caricamento dati ---------- */
@@ -322,7 +335,10 @@ function buildGraph(nodiRows, connRows){
   const visNodes = Object.keys(nodesRaw).map(id => {
     const n = nodesRaw[id];
     const cat = categoryOf(id);
-    const ringColor = n.nazionalita ? nazioColors[n.nazionalita] : NEUTRAL_COLOR;
+    const ringColor = colorFor(nazioColors, n.nazionalita);
+    // Le imbarcazioni ricevono una massa maggiore: nella simulazione fisica si respingono
+    // di più a vicenda e dagli altri nodi, restando ben distanziate tra loro.
+    const mass = cat === "imbarcazione" ? 6 : 1;
     return {
       id,
       label: truncate(n.nome || id, 26),
@@ -331,13 +347,14 @@ function buildGraph(nodiRows, connRows){
       color: { border: ringColor, highlight: { border: "#221F1A" } },
       borderWidth: 3,
       borderWidthSelected: 4,
+      mass,
       value: degree[id] || 1,
       title: n.nome || id
     };
   });
   const visEdges = edgesRaw.map(e => {
     const label = [e.tipo, e.anno].filter(Boolean).join(" · ");
-    const color = e.tipo ? tipoColors[e.tipo] : NEUTRAL_COLOR;
+    const color = colorFor(tipoColors, e.tipo);
     return {
       id: e.id, from: e.from, to: e.to,
       label,
@@ -366,12 +383,12 @@ function renderLegend(){
     <span class="item"><img src="${svgToDataUri(c.icon)}" alt="" style="width:16px;height:16px;border-radius:50%;">${c.label}</span>
   `).join("");
 
-  const nazioHtml = Object.entries(nazioColors).map(([val, color]) => `
-    <span class="item"><span class="dot" style="background:${color}"></span>${val}</span>
+  const nazioHtml = Object.keys(nazioColors.colorByKey).map(key => `
+    <span class="item"><span class="dot" style="background:${nazioColors.colorByKey[key]}"></span>${nazioColors.labelByKey[key]}</span>
   `).join("") + `<span class="item"><span class="dot" style="background:${NEUTRAL_COLOR}"></span>Non specificata</span>`;
 
-  const tipoHtml = Object.entries(tipoColors).map(([val, color]) => `
-    <span class="item"><span style="display:inline-block;width:14px;height:2px;background:${color};"></span>${val}</span>
+  const tipoHtml = Object.keys(tipoColors.colorByKey).map(key => `
+    <span class="item"><span style="display:inline-block;width:14px;height:2px;background:${tipoColors.colorByKey[key]};"></span>${tipoColors.labelByKey[key]}</span>
   `).join("");
 
   legend.innerHTML = `
@@ -400,7 +417,7 @@ function renderNetwork(){
       arrows: { to: { enabled: true, scaleFactor: 0.35 } }
     },
     physics: {
-      barnesHut: { gravitationalConstant: -2800, springLength: 110, springConstant: 0.05, damping: 0.25 },
+      barnesHut: { gravitationalConstant: -3200, springLength: 130, springConstant: 0.045, damping: 0.28, avoidOverlap: 1 },
       stabilization: { iterations: 250 }
     },
     interaction: { hover: true, tooltipDelay: 150, keyboard: true }
