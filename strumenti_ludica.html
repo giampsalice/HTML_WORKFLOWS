@@ -42,6 +42,18 @@
       row-gap: var(--gap-y);
     }
 
+    .search-area { max-width: 680px; margin: 0 auto 42px; }
+    .search-label { display: block; margin-bottom: 9px; font-size: 15px; font-weight: 700; }
+    .search-input {
+      width: 100%; min-height: 48px; padding: 11px 16px;
+      border: 1px solid #b7b7b7; border-radius: 7px;
+      background: #fff; color: var(--text-color); font: inherit; font-size: 16px;
+    }
+    .search-input:focus {
+      border-color: var(--accent-color); outline: 3px solid color-mix(in srgb, var(--accent-color) 22%, transparent);
+    }
+    .search-status { min-height: 20px; margin: 8px 0 0; color: var(--muted-color); font-size: 14px; }
+
     .card {
       min-width: 0;
       padding: 0 0 16px;
@@ -128,6 +140,12 @@
 
 <body>
   <main class="gallery-shell">
+    <div class="search-area">
+      <label class="search-label" for="gallery-search">Cerca nella galleria</label>
+      <input id="gallery-search" class="search-input" type="search"
+        placeholder="Cerca per nome o descrizione…" autocomplete="off" disabled>
+      <p id="search-status" class="search-status" aria-live="polite"></p>
+    </div>
     <div id="message" class="message">Caricamento della galleria…</div>
     <section id="gallery" class="gallery" aria-label="Galleria strumenti"></section>
   </main>
@@ -147,6 +165,9 @@
 
     const gallery = document.getElementById('gallery');
     const message = document.getElementById('message');
+    const searchInput = document.getElementById('gallery-search');
+    const searchStatus = document.getElementById('search-status');
+    let allItems = [];
 
     function showMessage(text) {
       message.textContent = text;
@@ -230,6 +251,32 @@
       }
     }
 
+    function searchableText(value) {
+      return String(value || '').normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('it');
+    }
+
+    function reportHeight() {
+      window.parent.postMessage({ type: 'gallery-height', height: document.documentElement.scrollHeight }, '*');
+    }
+
+    function renderItems(items, isFiltered = false) {
+      gallery.replaceChildren(...items.map(createCard));
+      searchStatus.textContent = isFiltered
+        ? `${items.length} ${items.length === 1 ? 'risultato trovato' : 'risultati trovati'}` : '';
+      if (isFiltered && !items.length) showMessage('Nessuno strumento corrisponde alla ricerca.');
+      else if (items.length) hideMessage();
+      requestAnimationFrame(reportHeight);
+    }
+
+    function filterGallery() {
+      const query = searchableText(searchInput.value.trim());
+      if (!query) return renderItems(allItems);
+      renderItems(allItems.filter(item =>
+        searchableText(`${item.NOME} ${item.DESCRIZIONE}`).includes(query)
+      ), true);
+    }
+
     function createCard(item) {
       const article = document.createElement('article');
       article.className = 'card';
@@ -276,16 +323,20 @@
         if (!response.ok) throw new Error(`Errore HTTP ${response.status}.`);
 
         const items = itemsFromCsv(await response.text());
-        gallery.replaceChildren(...items.map(createCard));
+        allItems = items;
+        renderItems(items);
+        searchInput.disabled = false;
 
-        if (items.length) hideMessage();
-        else showMessage('Il foglio non contiene ancora elementi da mostrare.');
+        if (!items.length) showMessage('Il foglio non contiene ancora elementi da mostrare.');
       } catch (error) {
         console.error(error);
         showMessage('Impossibile caricare i dati. Controlla che il foglio sia pubblicato sul web, il nome della scheda sia corretto e le quattro intestazioni coincidano.');
       }
     }
 
+    searchInput.addEventListener('input', filterGallery);
+    window.addEventListener('load', reportHeight);
+    window.addEventListener('resize', reportHeight);
     loadGallery();
   </script>
 </body>
