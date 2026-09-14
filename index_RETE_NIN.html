@@ -6,11 +6,11 @@
   <title>Mappa crediti NIN</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
   <style>
-    :root { color-scheme: light; --ink:#16243a; --muted:#667085; --brand:#155eef; --paper:#fff; --line:#d0d5dd; }
+    :root { color-scheme: light; --ink:#172033; --muted:#667085; --brand:#6d5dfc; --paper:#fff; --line:#e4e7ec; }
     * { box-sizing: border-box; }
     html, body { height:100%; margin:0; font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif; color:var(--ink); background:#eef2f7; }
     .app { height:100%; min-height:420px; display:grid; grid-template-rows:auto 1fr; }
-    header { z-index:1000; display:flex; align-items:center; gap:14px; padding:12px 16px; background:rgba(255,255,255,.96); border-bottom:1px solid var(--line); box-shadow:0 2px 10px #10182812; }
+    header { z-index:1000; display:flex; align-items:center; gap:14px; padding:13px 18px; background:linear-gradient(105deg,rgba(255,255,255,.97),rgba(244,242,255,.97)); border-bottom:1px solid var(--line); box-shadow:0 4px 20px #10182812; }
     h1 { margin:0; font-size:clamp(1rem,2.5vw,1.35rem); letter-spacing:-.02em; }
     #status { margin-left:auto; color:var(--muted); font-size:.86rem; white-space:nowrap; }
     #map { width:100%; height:100%; min-height:360px; }
@@ -19,6 +19,8 @@
     .leaflet-popup-content { min-width:180px; line-height:1.45; }
     .popup-title { font-weight:750; margin-bottom:5px; }
     .popup-row { color:#475467; }
+    .legend { background:rgba(255,255,255,.94); padding:9px 11px; border-radius:12px; box-shadow:0 5px 20px #1018281f; color:#475467; font-size:.78rem; line-height:1.35; }
+    .legend-dot { display:inline-block; width:12px; height:12px; margin-right:6px; border-radius:50%; vertical-align:-2px; background:linear-gradient(135deg,#8b5cf6,#2563eb); }
     @media (max-width:560px) { header { padding:10px 12px; } #status { font-size:.76rem; } .app { min-height:340px; } }
   </style>
 </head>
@@ -33,8 +35,8 @@
   <script>
     const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRxZ1JcJy6VdGQnt3oy0v_xm4tqQSfombk-lw9rS0eQiPDg7_tO-GHxdFPaOR0wHqwdDyCRgYbZZPAZ/pub?gid=1913274688&single=true&output=csv';
     const map = L.map('map', { scrollWheelZoom: false }).setView([42.2, 12.5], 5);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19, attribution: '&copy; OpenStreetMap contributors'
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+      subdomains:'abcd', maxZoom:20, attribution:'&copy; OpenStreetMap contributors &copy; CARTO'
     }).addTo(map);
     const statusEl = document.querySelector('#status');
     const messageEl = document.querySelector('#message');
@@ -43,8 +45,11 @@
       const normalized = String(value ?? '').trim().replace(',', '.');
       return normalized === '' ? NaN : Number(normalized);
     };
-    const coordinatePair = cells => {
+    const coordinatePair = (cells, labels) => {
       const values = cells.map(number);
+      const latIndex=labels.findIndex(v=>/lat/i.test(v));
+      const lonIndex=labels.findIndex(v=>/(lon|lng|long)/i.test(v));
+      if (latIndex>=0 && lonIndex>=0 && Number.isFinite(values[latIndex]) && Number.isFinite(values[lonIndex])) return [values[latIndex],values[lonIndex]];
       for (let a=0; a<values.length; a++) for (let b=0; b<values.length; b++) {
         if (a === b) continue;
         if (Math.abs(values[a]) <= 90 && Math.abs(values[b]) <= 180 && Number.isFinite(values[a]) && Number.isFinite(values[b])) return [values[a], values[b]];
@@ -58,18 +63,30 @@
         if (!result.data?.length) return showError('Il foglio non contiene righe leggibili. Verifica che sia pubblicato sul web.');
         const header = result.data[0];
         const labels = header.slice(4,7).map((v,i) => v || `Colonna ${String.fromCharCode(69+i)}`);
-        const bounds=[]; let skipped=0;
+        const groups=new Map(); let skipped=0;
         result.data.slice(1).forEach(row => {
-          const cells=row.slice(4,7); const pair=coordinatePair(cells);
+          const cells=row.slice(4,7); const pair=coordinatePair(cells,labels);
           if (!pair) { skipped++; return; }
-          const title=cells.find(v => v && !Number.isFinite(number(v))) || `Punto ${bounds.length+1}`;
-          const html=`<div class="popup-title">${escapeHtml(title)}</div>` + cells.map((v,i)=>v ? `<div class="popup-row"><strong>${escapeHtml(labels[i])}:</strong> ${escapeHtml(v)}</div>`:'').join('');
-          L.circleMarker(pair,{radius:7,weight:2,color:'#fff',fillColor:'#155eef',fillOpacity:.88}).addTo(map).bindPopup(html);
-          bounds.push(pair);
+          const key=`${pair[0].toFixed(5)},${pair[1].toFixed(5)}`;
+          if (!groups.has(key)) groups.set(key,{pair,rows:[]});
+          groups.get(key).rows.push(cells);
+        });
+        const bounds=[]; let total=0; let maxCount=1;
+        groups.forEach(group=>{ maxCount=Math.max(maxCount,group.rows.length); });
+        groups.forEach(group=>{
+          const count=group.rows.length; total+=count; bounds.push(group.pair);
+          const title=group.rows[0].find(v=>v && !Number.isFinite(number(v))) || 'Località';
+          const details=group.rows[0].map((v,i)=>v ? `<div class="popup-row"><strong>${escapeHtml(labels[i])}:</strong> ${escapeHtml(v)}</div>`:'').join('');
+          const html=`<div class="popup-title">${escapeHtml(title)}</div><div class="popup-row"><strong>Occorrenze:</strong> ${count}</div>${details}`;
+          const radius=8 + 22*Math.sqrt((count-1)/Math.max(1,maxCount-1));
+          L.circleMarker(group.pair,{radius,weight:2,color:'#ffffff',fillColor:count===maxCount && maxCount>1?'#7c3aed':'#2563eb',fillOpacity:.82}).addTo(map).bindPopup(html);
         });
         if (!bounds.length) return showError('Nelle colonne E, F e G non ho trovato una coppia di coordinate valida (latitudine e longitudine).');
         map.fitBounds(bounds,{padding:[28,28],maxZoom:14});
-        statusEl.textContent=`${bounds.length} punti${skipped ? ` · ${skipped} righe ignorate` : ''}`;
+        statusEl.textContent=`${total} occorrenze · ${bounds.length} località${skipped ? ` · ${skipped} righe ignorate` : ''}`;
+        const legend=L.control({position:'bottomright'});
+        legend.onAdd=()=>{ const div=L.DomUtil.create('div','legend'); div.innerHTML='<span class="legend-dot"></span>Dimensione = numero di occorrenze'; return div; };
+        legend.addTo(map);
         setTimeout(()=>map.invalidateSize(),100);
       },
       error() { showError('Non riesco a leggere il CSV. Controlla la pubblicazione del foglio e le autorizzazioni CORS.'); }
