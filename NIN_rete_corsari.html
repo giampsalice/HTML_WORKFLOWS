@@ -132,11 +132,10 @@ button{ font-family: inherit; }
    CONFIGURAZIONE — modifica solo questa parte
    ===================================================================== */
 const CONFIG = {
-  // I CSV vengono aggiornati automaticamente nel repository dal workflow
-  // .github/workflows/update-corsari-data.yml. Essendo sullo stesso dominio
-  // della pagina GitHub Pages, il browser non incontra più blocchi CORS.
-  nodiUrl: "./data/corsari_nodi.csv",
-  connessioniUrl: "./data/corsari_connessioni.csv",
+  // URL del foglio originale. Il codice usa Google Visualization in modalità
+  // JSONP: funziona da GitHub Pages senza proxy, workflow o blocchi CORS.
+  nodiUrl: "https://docs.google.com/spreadsheets/d/1fALYR2tXJE15oPeTBnXbUVy00ouHE_bFzp67S2gosjY/edit?gid=378951882",
+  connessioniUrl: "https://docs.google.com/spreadsheets/d/1fALYR2tXJE15oPeTBnXbUVy00ouHE_bFzp67S2gosjY/edit?gid=434015411",
 
   columnsNodi: {
     id:               ["id"],
@@ -403,7 +402,8 @@ function parseCSV(url){
 // accetta invece una callback JSONP e continua a funzionare dentro un iframe.
 function googleVisualizationUrl(publishedUrl, callbackName){
   const source = new URL(publishedUrl);
-  const match = source.pathname.match(/^(.*\/spreadsheets\/d\/e\/[^/]+)\/pub$/);
+  const match = source.pathname.match(/^(.*\/spreadsheets\/d\/e\/[^/]+)\/pub$/) ||
+                source.pathname.match(/^(.*\/spreadsheets\/d\/[^/]+)\/(?:edit|view)$/);
   if (!match) return "";
   const endpoint = new URL(source.origin + match[1] + "/gviz/tq");
   endpoint.searchParams.set("gid", source.searchParams.get("gid") || "0");
@@ -458,20 +458,12 @@ function parseGoogleSheetJsonp(url){
 }
 
 async function loadSheet(label, url){
-  const isPublishedGoogleSheet = /docs\.google\.com\/spreadsheets\/d\/e\/.+\/pub/i.test(url);
+  const isGoogleSheet = /docs\.google\.com\/spreadsheets\/d\/(?:e\/)?[^/]+\/(?:pub|edit|view)/i.test(url);
   try{
-    // Per i fogli Google usa JSONP: non dipende dagli header CORS.
-    return isPublishedGoogleSheet ? await parseGoogleSheetJsonp(url) : await parseCSV(url);
-  }catch(primaryError){
-    // Mantiene un secondo tentativo CSV, utile se Google modifica nuovamente
-    // l'endpoint Visualization ma ripristina l'accesso CORS.
-    if (isPublishedGoogleSheet){
-      try { return await parseCSV(url); }
-      catch (csvError) {
-        throw new Error(label + ": " + primaryError.message + "; tentativo CSV: " + csvError.message);
-      }
-    }
-    throw new Error(label + ": " + primaryError.message);
+    // Per Google Sheets usa JSONP: non dipende dagli header CORS.
+    return isGoogleSheet ? await parseGoogleSheetJsonp(url) : await parseCSV(url);
+  }catch(error){
+    throw new Error(label + ": " + error.message);
   }
 }
 function truncate(s, n){ return (s && s.length > n) ? s.slice(0, n - 1) + "…" : (s || ""); }
@@ -507,7 +499,7 @@ async function loadData(){
     ]);
     buildGraph(nodiRows, connRows);
   }catch(err){
-    showError("Impossibile leggere i dati", "Verifica che il workflow GitHub «Aggiorna dati rete corsari» sia terminato correttamente. Dettaglio: " + err.message);
+    showError("Impossibile leggere i fogli", "Verifica che il foglio Google sia condiviso con «Chiunque abbia il link». Dettaglio: " + err.message);
   }
 }
 
