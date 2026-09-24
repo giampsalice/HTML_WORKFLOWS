@@ -132,8 +132,11 @@ button{ font-family: inherit; }
    CONFIGURAZIONE — modifica solo questa parte
    ===================================================================== */
 const CONFIG = {
-  nodiUrl: "https://docs.google.com/spreadsheets/d/e/2PACX-1vRxZ1JcJy6VdGQnt3oy0v_xm4tqQSfombk-lw9rS0eQiPDg7_tO-GHxdFPaOR0wHqwdDyCRgYbZZPAZ/pub?gid=378951882&single=true&output=csv",
-  connessioniUrl: "https://docs.google.com/spreadsheets/d/e/2PACX-1vRxZ1JcJy6VdGQnt3oy0v_xm4tqQSfombk-lw9rS0eQiPDg7_tO-GHxdFPaOR0wHqwdDyCRgYbZZPAZ/pub?gid=434015411&single=true&output=csv",
+  // I CSV vengono aggiornati automaticamente nel repository dal workflow
+  // .github/workflows/update-corsari-data.yml. Essendo sullo stesso dominio
+  // della pagina GitHub Pages, il browser non incontra più blocchi CORS.
+  nodiUrl: "./data/corsari_nodi.csv",
+  connessioniUrl: "./data/corsari_connessioni.csv",
 
   columnsNodi: {
     id:               ["id"],
@@ -493,7 +496,7 @@ let physicsOn = true;
 
 /* ---------- Caricamento dati ---------- */
 async function loadData(){
-  if (!CONFIG.nodiUrl.includes("http") || !CONFIG.connessioniUrl.includes("http")){
+  if (!CONFIG.nodiUrl || !CONFIG.connessioniUrl){
     showError("Configurazione mancante", "Inserisci gli URL CSV di CONFIG.nodiUrl e CONFIG.connessioniUrl.");
     return;
   }
@@ -504,7 +507,7 @@ async function loadData(){
     ]);
     buildGraph(nodiRows, connRows);
   }catch(err){
-    showError("Impossibile leggere i fogli", "Verifica che entrambi i fogli siano ancora pubblicati sul web. Dettaglio: " + err.message);
+    showError("Impossibile leggere i dati", "Verifica che il workflow GitHub «Aggiorna dati rete corsari» sia terminato correttamente. Dettaglio: " + err.message);
   }
 }
 
