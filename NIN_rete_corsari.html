@@ -380,10 +380,96 @@ function parseCSV(url){
   return new Promise((resolve, reject) => {
     Papa.parse(url, {
       download: true, header: true, skipEmptyLines: true,
-      complete: (res) => resolve(res.data || []),
-      error: (err) => reject(err)
+      complete: (res) => {
+        if (res.errors && res.errors.length && !(res.data || []).length){
+          reject(new Error(res.errors[0].message || "CSV non valido"));
+          return;
+        }
+        resolve(res.data || []);
+      },
+      error: (err) => reject(new Error(
+        (err && err.message) || "richiesta CSV bloccata dal browser"
+      ))
     });
   });
+}
+
+// Gli URL CSV pubblicati da Google possono essere reindirizzati verso un host
+// che non espone più gli header CORS. In quel caso XMLHttpRequest (usato da
+// PapaParse) fallisce anche se il foglio è pubblico. L'endpoint Visualization
+// accetta invece una callback JSONP e continua a funzionare dentro un iframe.
+function googleVisualizationUrl(publishedUrl, callbackName){
+  const source = new URL(publishedUrl);
+  const match = source.pathname.match(/^(.*\/spreadsheets\/d\/e\/[^/]+)\/pub$/);
+  if (!match) return "";
+  const endpoint = new URL(source.origin + match[1] + "/gviz/tq");
+  endpoint.searchParams.set("gid", source.searchParams.get("gid") || "0");
+  endpoint.searchParams.set("headers", "1");
+  endpoint.searchParams.set("tqx", "out:json;responseHandler:" + callbackName);
+  return endpoint.toString();
+}
+
+function gvizTableToRows(response){
+  if (!response || response.status === "error" || !response.table){
+    const detail = response && response.errors && response.errors[0];
+    throw new Error((detail && (detail.detailed_message || detail.message)) || "risposta Google non valida");
+  }
+  const columns = (response.table.cols || []).map((col, index) =>
+    (col && (col.label || col.id)) || ("colonna_" + (index + 1))
+  );
+  return (response.table.rows || []).map(row => {
+    const result = {};
+    columns.forEach((column, index) => {
+      const cell = row.c && row.c[index];
+      result[column] = cell == null ? "" : (cell.f != null ? cell.f : (cell.v != null ? cell.v : ""));
+    });
+    return result;
+  }).filter(row => Object.values(row).some(value => value !== ""));
+}
+
+function parseGoogleSheetJsonp(url){
+  return new Promise((resolve, reject) => {
+    const callbackName = "asmsaSheet_" + Date.now() + "_" + Math.random().toString(36).slice(2);
+    const endpoint = googleVisualizationUrl(url, callbackName);
+    if (!endpoint){ reject(new Error("URL Google non riconosciuto")); return; }
+
+    const script = document.createElement("script");
+    const timeout = setTimeout(() => finish(new Error("Google non ha risposto entro 15 secondi")), 15000);
+    function cleanup(){
+      clearTimeout(timeout);
+      script.remove();
+      try { delete window[callbackName]; } catch (_) { window[callbackName] = undefined; }
+    }
+    function finish(error, rows){
+      cleanup();
+      error ? reject(error) : resolve(rows);
+    }
+    window[callbackName] = response => {
+      try { finish(null, gvizTableToRows(response)); }
+      catch (error) { finish(error); }
+    };
+    script.onerror = () => finish(new Error("endpoint Google Visualization non raggiungibile"));
+    script.src = endpoint;
+    document.head.appendChild(script);
+  });
+}
+
+async function loadSheet(label, url){
+  const isPublishedGoogleSheet = /docs\.google\.com\/spreadsheets\/d\/e\/.+\/pub/i.test(url);
+  try{
+    // Per i fogli Google usa JSONP: non dipende dagli header CORS.
+    return isPublishedGoogleSheet ? await parseGoogleSheetJsonp(url) : await parseCSV(url);
+  }catch(primaryError){
+    // Mantiene un secondo tentativo CSV, utile se Google modifica nuovamente
+    // l'endpoint Visualization ma ripristina l'accesso CORS.
+    if (isPublishedGoogleSheet){
+      try { return await parseCSV(url); }
+      catch (csvError) {
+        throw new Error(label + ": " + primaryError.message + "; tentativo CSV: " + csvError.message);
+      }
+    }
+    throw new Error(label + ": " + primaryError.message);
+  }
 }
 function truncate(s, n){ return (s && s.length > n) ? s.slice(0, n - 1) + "…" : (s || ""); }
 function categoryOf(id){
@@ -413,12 +499,12 @@ async function loadData(){
   }
   try{
     const [nodiRows, connRows] = await Promise.all([
-      parseCSV(CONFIG.nodiUrl),
-      parseCSV(CONFIG.connessioniUrl)
+      loadSheet("foglio nodi", CONFIG.nodiUrl),
+      loadSheet("foglio connessioni", CONFIG.connessioniUrl)
     ]);
     buildGraph(nodiRows, connRows);
   }catch(err){
-    showError("Impossibile leggere i fogli", "Verifica che entrambi gli URL siano CSV pubblicati (Pubblica sul web, foglio singolo). Dettaglio: " + err.message);
+    showError("Impossibile leggere i fogli", "Verifica che entrambi i fogli siano ancora pubblicati sul web. Dettaglio: " + err.message);
   }
 }
 
