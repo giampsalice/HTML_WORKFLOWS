@@ -25,9 +25,11 @@
 <script>
 'use strict';
 /* CONFIGURAZIONE: il foglio è già collegato. Mantieni la pubblicazione sul Web attiva.
-   Colonne: titolo, descrizione, data, luogo, url locandina, pdf locandina, url + info.
+   Colonne: titolo, descrizione, data inizio, data fine, luogo, url locandina, pdf locandina, url + info.
    Sono ignorate le colonne vuote e le righe senza titolo.
-   Data consigliata: GG/MM/AAAA oppure AAAA-MM-GG.
+   Date consigliate: GG/MM/AAAA oppure AAAA-MM-GG.
+   data fine può essere vuota per gli appuntamenti di un solo giorno.
+   Ordinamento per data inizio; il filtro anno comprende gli intervalli tra anni diversi.
    url locandina: link diretto a un'immagine JPG/PNG/WebP (non a una pagina).
    pdf locandina: link pubblico al PDF. Il PDF si apre e si scarica dal visualizzatore.
    Se c'è solo il PDF, compare un riquadro con collegamento: non viene convertito in immagine.
@@ -62,6 +64,20 @@ function dateValue(value){
  const dt=new Date(+y,+month-1,+d,12);
  return dt.getFullYear()===+y&&dt.getMonth()===+month-1&&dt.getDate()===+d?dt:null;
 }
+function dateLabel(e){
+ const format=d=>d.toLocaleDateString('it-IT',{day:'numeric',month:'long',year:'numeric'});
+ const start=e.date?format(e.date):e.dateText;
+ const end=e.endDate?format(e.endDate):e.endText;
+ if(!start)return end?'Fino al '+end:'';
+ if(!end||start===end)return start;
+ return 'Dal '+start+' al '+end;
+}
+function eventYears(e){
+ const start=e.date?.getFullYear(),end=e.endDate?.getFullYear();
+ if(start===undefined)return end===undefined?[]:[end];
+ if(end===undefined||end<start)return [start];
+ return Array.from({length:end-start+1},(_,i)=>start+i);
+}
 function element(tag,cls,text){const e=document.createElement(tag);if(cls)e.className=cls;if(text!==undefined)e.textContent=text;return e;}
 function link(url,label,primary=false){const a=element('a','link'+(primary?' primary':''),label);a.href=url;a.target='_blank';a.rel='noopener noreferrer';return a;}
 function card(e){
@@ -70,13 +86,13 @@ function card(e){
  const fallback=()=>{poster.replaceChildren(element('span','placeholder',e.pdf?'Locandina in PDF ↗':'Locandina non disponibile'));if(e.pdf)poster.href=e.pdf;};
  if(e.image){const img=element('img');img.alt='Locandina: '+e.title;img.loading='lazy';img.src=e.image;img.addEventListener('error',fallback,{once:true});poster.append(img);}else fallback();
  const body=element('div','body');
- if(e.dateText)body.append(element('p','date',e.date?e.date.toLocaleDateString('it-IT',{day:'numeric',month:'long',year:'numeric'}):e.dateText));
+ const label=dateLabel(e);if(label)body.append(element('p','date',label));
  body.append(element('h2','',e.title));if(e.place)body.append(element('p','place',e.place));if(e.description)body.append(element('p','description',e.description));
  const actions=element('div','actions');if(e.info)actions.append(link(e.info,'Più informazioni ↗',true));if(e.pdf)actions.append(link(e.pdf,'Apri PDF ↗'));if(e.image)actions.append(link(e.image,'Locandina ↗'));body.append(actions);article.append(poster,body);return article;
 }
 function render(){
  const q=searchable($('search').value),year=$('year').value;
- const filtered=events.filter(e=>(!year||String(e.date?.getFullYear())===year)&&searchable([e.title,e.description,e.place,e.dateText].join(' ')).includes(q));
+ const filtered=events.filter(e=>(!year||eventYears(e).includes(Number(year)))&&searchable([e.title,e.description,e.place,e.dateText,e.endText].join(' ')).includes(q));
  const pages=Math.max(1,Math.ceil(filtered.length/CONFIG.perPage));current=Math.min(current,pages);
  $('grid').replaceChildren(...filtered.slice((current-1)*CONFIG.perPage,current*CONFIG.perPage).map(card));
  $('status').textContent=filtered.length?`${filtered.length} appuntament${filtered.length===1?'o':'i'} · dal più recente`:'Nessun appuntamento trovato.';
@@ -88,11 +104,11 @@ async function load(){
  try{
   const response=await fetch(CONFIG.csv,{signal:controller.signal,cache:'no-store'});if(!response.ok)throw new Error('Risposta HTTP '+response.status);
   const raw=await response.text();if(/^\s*</.test(raw))throw new Error('Il foglio ha restituito una pagina HTML al posto del CSV.');
-  const rows=parseCSV(raw),headers=(rows.shift()||[]).map(normalize),required=['titolo','descrizione','data','luogo','url locandina','pdf locandina','url + info'];
+  const rows=parseCSV(raw),headers=(rows.shift()||[]).map(normalize),required=['titolo','descrizione','data inizio','data fine','luogo','url locandina','pdf locandina','url + info'];
   const missing=required.filter(h=>!headers.includes(h));if(missing.length)throw new Error('Intestazioni mancanti: '+missing.join(', '));
   const get=(r,k)=>String(r[headers.indexOf(k)]||'').trim();
-  events=rows.map(r=>({title:get(r,'titolo'),description:get(r,'descrizione'),dateText:get(r,'data'),date:dateValue(get(r,'data')),place:get(r,'luogo'),image:safeURL(get(r,'url locandina')),pdf:safeURL(get(r,'pdf locandina')),info:safeURL(get(r,'url + info'))})).filter(e=>e.title).sort((a,b)=>(b.date?.getTime()??-Infinity)-(a.date?.getTime()??-Infinity));
-  $('year').replaceChildren(new Option('Tutti gli anni',''),...[...new Set(events.filter(e=>e.date).map(e=>e.date.getFullYear()))].sort((a,b)=>b-a).map(y=>new Option(y,y)));
+  events=rows.map(r=>({title:get(r,'titolo'),description:get(r,'descrizione'),dateText:get(r,'data inizio'),date:dateValue(get(r,'data inizio')),endText:get(r,'data fine'),endDate:dateValue(get(r,'data fine')),place:get(r,'luogo'),image:safeURL(get(r,'url locandina')),pdf:safeURL(get(r,'pdf locandina')),info:safeURL(get(r,'url + info'))})).filter(e=>e.title).sort((a,b)=>(b.date?.getTime()??-Infinity)-(a.date?.getTime()??-Infinity));
+  $('year').replaceChildren(new Option('Tutti gli anni',''),...[...new Set(events.flatMap(eventYears))].sort((a,b)=>b-a).map(y=>new Option(y,y)));
   current=1;render();
  }catch(error){$('status').textContent='Gli appuntamenti non sono al momento disponibili.';$('error-text').textContent='Non è stato possibile leggere il foglio. Verifica che sia pubblicato sul Web in formato CSV, poi riprova. '+(error.name==='AbortError'?'Tempo di attesa scaduto.':error.message);$('error').hidden=false;}
  finally{clearTimeout(timeout);$('grid').setAttribute('aria-busy','false');$('retry').disabled=false;}
