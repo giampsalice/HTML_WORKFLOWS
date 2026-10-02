@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Storia · Appuntamenti</title>
+<style>
+/* PERSONALIZZA QUI colori e larghezza. Questi stili restano dentro l'iframe. */
+:root{--accent:#7d302d;--ink:#252926;--muted:#626762;--line:#deded6;--paper:#f5f4ef}
+*{box-sizing:border-box}body{margin:0;background:#fff;color:var(--ink);font:16px/1.6 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}main{max-width:1180px;margin:auto;padding:28px 20px}header{border-top:4px solid var(--accent);padding-top:22px;margin-bottom:26px}.eyebrow{color:var(--accent);font-size:.75rem;font-weight:750;letter-spacing:.16em;text-transform:uppercase;margin:0}h1{font:normal clamp(2rem,6vw,3.2rem)/1.15 Georgia,serif;margin:8px 0 12px}header p{color:var(--muted);margin:0}.tools{display:flex;gap:14px;flex-wrap:wrap;margin:24px 0 14px}.field{flex:1;min-width:180px}.field:last-child{flex:0 1 190px}label{display:block;font-size:.8rem;font-weight:650;margin-bottom:5px}input,select,button{font:inherit}input,select{width:100%;border:1px solid var(--line);border-radius:5px;padding:10px;background:#fff;color:var(--ink)}button,.link{cursor:pointer;border:1px solid var(--line);border-radius:4px;padding:8px 12px;background:white;color:var(--accent);font-size:.85rem;font-weight:650;text-decoration:none}button:hover,.link:hover{background:var(--paper)}a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--accent);outline-offset:3px}button:disabled{opacity:.4;cursor:default}#status{font-size:.9rem;color:var(--muted);margin:16px 0}#grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:24px}.card{border:1px solid var(--line);border-radius:6px;overflow:hidden;display:flex;flex-direction:column;min-width:0}.poster{display:flex;align-items:center;justify-content:center;background:var(--paper);height:310px;text-decoration:none;color:var(--muted);padding:15px}.poster img{display:block;width:100%;height:100%;object-fit:contain}.placeholder{text-align:center;font:1.3rem Georgia,serif;padding:24px}.body{padding:20px;display:flex;flex-direction:column;flex:1}.date{font-size:.75rem;font-weight:750;color:var(--accent);letter-spacing:.04em;margin:0 0 8px}h2{font:normal 1.4rem/1.25 Georgia,serif;margin:0 0 12px;overflow-wrap:anywhere}.place{font-size:.85rem;color:var(--muted);margin:0 0 12px}.description{font-size:.9rem;white-space:pre-line;overflow-wrap:anywhere;margin:0 0 18px}.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:auto}.primary{background:var(--accent);border-color:var(--accent);color:white}.primary:hover{background:#602321}nav{display:flex;align-items:center;justify-content:center;gap:18px;margin:30px 0}#page{font-size:.85rem}#error{padding:20px;border:1px solid var(--line);background:var(--paper)}[hidden]{display:none!important}footer{border-top:1px solid var(--line);padding-top:16px;color:var(--muted);font-size:.75rem;margin-top:24px}@media(max-width:860px){#grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:540px){main{padding:20px 12px}#grid{grid-template-columns:1fr}.poster{height:350px}.field:last-child{flex:1}nav{gap:10px}}
+</style>
+</head>
+<body>
+<main>
+<!-- PERSONALIZZA QUI titolo e sottotitolo. Nessun menu: resta quello di WordPress. -->
+<header><p class="eyebrow">Storia</p><h1>Appuntamenti</h1><p>Incontri, seminari e iniziative. Esplora il calendario e l’archivio.</p></header>
+<div class="tools"><div class="field"><label for="search">Cerca negli appuntamenti</label><input id="search" type="search" placeholder="Titolo, descrizione o luogo…"></div><div class="field"><label for="year">Anno</label><select id="year"><option value="">Tutti gli anni</option></select></div></div>
+<p id="status" role="status" aria-live="polite">Caricamento degli appuntamenti…</p>
+<div id="error" hidden><p id="error-text"></p><button id="retry" type="button">Riprova</button> <a id="source" class="link" target="_blank" rel="noopener noreferrer">Apri il CSV</a></div>
+<section id="grid" aria-label="Galleria degli appuntamenti" aria-busy="true"></section>
+<nav id="pagination" aria-label="Pagine degli appuntamenti" hidden><button id="prev" type="button">← Precedenti</button><span id="page"></span><button id="next" type="button">Successivi →</button></nav>
+<footer>Le locandine e i collegamenti si aprono in una nuova scheda.</footer>
+<noscript>Per visualizzare gli appuntamenti, abilita JavaScript nel browser.</noscript>
+</main>
+<script>
+'use strict';
+/* CONFIGURAZIONE: il foglio è già collegato. Mantieni la pubblicazione sul Web attiva.
+   Colonne: titolo, descrizione, data, luogo, url locandina, pdf locandina, url + info.
+   Sono ignorate le colonne vuote e le righe senza titolo.
+   Data consigliata: GG/MM/AAAA oppure AAAA-MM-GG.
+   url locandina: link diretto a un'immagine JPG/PNG/WebP (non a una pagina).
+   pdf locandina: link pubblico al PDF. Il PDF si apre e si scarica dal visualizzatore.
+   Se c'è solo il PDF, compare un riquadro con collegamento: non viene convertito in immagine.
+   Le celle sono testo semplice: non occorre inserire codice HTML.
+*/
+const CONFIG = {
+ csv:'https://docs.google.com/spreadsheets/d/e/2PACX-1vQR78gM8NSLLBYkxMeafO0fI_NswuTMefDTYh1-jJRNi2chjuBvwTJRyFeqnxBohGpcGZg6q7Vpd60W/pub?gid=444228331&single=true&output=csv',
+ perPage:6 // Numero di schede per pagina; le più recenti sono mostrate per prime.
+};
+const $=id=>document.getElementById(id);
+let events=[],current=1;
+const normalize=s=>String(s||'').replace(/^\uFEFF/,'').trim().toLowerCase().replace(/\s+/g,' ');
+const searchable=s=>normalize(s).normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+// Parser CSV: gestisce virgole, virgolette doppie e ritorni a capo dentro le celle.
+function parseCSV(text){
+ const rows=[];let row=[],cell='',quoted=false;
+ text=text.replace(/^\uFEFF/,'');
+ for(let i=0;i<text.length;i++){const c=text[i];
+  if(c==='"'){if(quoted&&text[i+1]==='"'){cell+='"';i++;}else quoted=!quoted;}
+  else if(c===','&&!quoted){row.push(cell);cell='';}
+  else if((c==='\n'||c==='\r')&&!quoted){if(c==='\r'&&text[i+1]==='\n')i++;row.push(cell);rows.push(row);row=[];cell='';}
+  else cell+=c;
+ }
+ if(quoted)throw new Error('Il CSV contiene virgolette non chiuse.');
+ if(cell.length||row.length){row.push(cell);rows.push(row);}return rows;
+}
+function safeURL(value){try{const u=new URL(value);return ['https:','http:'].includes(u.protocol)?u.href:'';}catch{return '';}}
+function dateValue(value){
+ const s=value.trim();let m,y,month,d;
+ if((m=s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/))){[,y,month,d]=m;}
+ else if((m=s.match(/^(\d{1,2})[/.\-](\d{1,2})[/.\-](\d{4})$/))){[,d,month,y]=m;}else return null;
+ const dt=new Date(+y,+month-1,+d,12);
+ return dt.getFullYear()===+y&&dt.getMonth()===+month-1&&dt.getDate()===+d?dt:null;
+}
+function element(tag,cls,text){const e=document.createElement(tag);if(cls)e.className=cls;if(text!==undefined)e.textContent=text;return e;}
+function link(url,label,primary=false){const a=element('a','link'+(primary?' primary':''),label);a.href=url;a.target='_blank';a.rel='noopener noreferrer';return a;}
+function card(e){
+ const article=element('article','card'),poster=element(e.image||e.pdf?'a':'div','poster');
+ if(e.image||e.pdf){poster.href=e.image||e.pdf;poster.target='_blank';poster.rel='noopener noreferrer';poster.setAttribute('aria-label','Apri la locandina: '+e.title);}
+ const fallback=()=>{poster.replaceChildren(element('span','placeholder',e.pdf?'Locandina in PDF ↗':'Locandina non disponibile'));if(e.pdf)poster.href=e.pdf;};
+ if(e.image){const img=element('img');img.alt='Locandina: '+e.title;img.loading='lazy';img.src=e.image;img.addEventListener('error',fallback,{once:true});poster.append(img);}else fallback();
+ const body=element('div','body');
+ if(e.dateText)body.append(element('p','date',e.date?e.date.toLocaleDateString('it-IT',{day:'numeric',month:'long',year:'numeric'}):e.dateText));
+ body.append(element('h2','',e.title));if(e.place)body.append(element('p','place',e.place));if(e.description)body.append(element('p','description',e.description));
+ const actions=element('div','actions');if(e.info)actions.append(link(e.info,'Più informazioni ↗',true));if(e.pdf)actions.append(link(e.pdf,'Apri PDF ↗'));if(e.image)actions.append(link(e.image,'Locandina ↗'));body.append(actions);article.append(poster,body);return article;
+}
+function render(){
+ const q=searchable($('search').value),year=$('year').value;
+ const filtered=events.filter(e=>(!year||String(e.date?.getFullYear())===year)&&searchable([e.title,e.description,e.place,e.dateText].join(' ')).includes(q));
+ const pages=Math.max(1,Math.ceil(filtered.length/CONFIG.perPage));current=Math.min(current,pages);
+ $('grid').replaceChildren(...filtered.slice((current-1)*CONFIG.perPage,current*CONFIG.perPage).map(card));
+ $('status').textContent=filtered.length?`${filtered.length} appuntament${filtered.length===1?'o':'i'} · dal più recente`:'Nessun appuntamento trovato.';
+ $('pagination').hidden=pages<=1;$('page').textContent=`Pagina ${current} di ${pages}`;$('prev').disabled=current===1;$('next').disabled=current===pages;
+}
+async function load(){
+ $('error').hidden=true;$('status').textContent='Caricamento degli appuntamenti…';$('grid').setAttribute('aria-busy','true');$('retry').disabled=true;
+ const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),20000);
+ try{
+  const response=await fetch(CONFIG.csv,{signal:controller.signal,cache:'no-store'});if(!response.ok)throw new Error('Risposta HTTP '+response.status);
+  const raw=await response.text();if(/^\s*</.test(raw))throw new Error('Il foglio ha restituito una pagina HTML al posto del CSV.');
+  const rows=parseCSV(raw),headers=(rows.shift()||[]).map(normalize),required=['titolo','descrizione','data','luogo','url locandina','pdf locandina','url + info'];
+  const missing=required.filter(h=>!headers.includes(h));if(missing.length)throw new Error('Intestazioni mancanti: '+missing.join(', '));
+  const get=(r,k)=>String(r[headers.indexOf(k)]||'').trim();
+  events=rows.map(r=>({title:get(r,'titolo'),description:get(r,'descrizione'),dateText:get(r,'data'),date:dateValue(get(r,'data')),place:get(r,'luogo'),image:safeURL(get(r,'url locandina')),pdf:safeURL(get(r,'pdf locandina')),info:safeURL(get(r,'url + info'))})).filter(e=>e.title).sort((a,b)=>(b.date?.getTime()??-Infinity)-(a.date?.getTime()??-Infinity));
+  $('year').replaceChildren(new Option('Tutti gli anni',''),...[...new Set(events.filter(e=>e.date).map(e=>e.date.getFullYear()))].sort((a,b)=>b-a).map(y=>new Option(y,y)));
+  current=1;render();
+ }catch(error){$('status').textContent='Gli appuntamenti non sono al momento disponibili.';$('error-text').textContent='Non è stato possibile leggere il foglio. Verifica che sia pubblicato sul Web in formato CSV, poi riprova. '+(error.name==='AbortError'?'Tempo di attesa scaduto.':error.message);$('error').hidden=false;}
+ finally{clearTimeout(timeout);$('grid').setAttribute('aria-busy','false');$('retry').disabled=false;}
+}
+$('source').href=CONFIG.csv;$('retry').addEventListener('click',load);
+for(const id of ['search','year'])$(id).addEventListener(id==='search'?'input':'change',()=>{current=1;render();});
+for(const [id,delta] of [['prev',-1],['next',1]])$(id).addEventListener('click',()=>{current+=delta;render();window.scrollTo({top:0,behavior:'smooth'});});
+load();
+</script>
+</body>
+</html>
