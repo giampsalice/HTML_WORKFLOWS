@@ -169,7 +169,7 @@
       renderPagination(totalPages);$('load-more').hidden=!all||shown.length>=total;$('load-more').textContent=t('more');
     }
     function openModal(id){const item=state.items.find(i=>i.id===Number(id));if(!item)return;state.lastFocus=document.activeElement;state.modalId=item.id;
-      const modal=$('modal-body');modal.innerHTML=`<div class="modal-identity">${avatarHtml(item,'modal-avatar',true)}<div>${badge(item)}<h2 id="modal-title">${escapeHtml(item.name)}</h2><p>${escapeHtml(item.role||'')}</p></div></div><dl class="details-grid">${state.headers.map(h=>{
+      const modal=$('modal-body');modal.innerHTML=`<div class="modal-identity">${avatarHtml(item,'modal-avatar',true)}<div>${badge(item)}<h2 id="modal-title">${escapeHtml(item.name)}</h2><p>${escapeHtml(item.role||'')}</p></div></div><dl class="details-grid">${state.headers.filter(h=>h.kind!=='image' && !imageHeader(h.source)).map(h=>{
         const value=item.values[h.id];if(!value)return '';const url=h.isUrl?safeUrl(value):'';
         return `<div class="detail"><dt>${escapeHtml(h.label)}</dt><dd>${url?`<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(value)} ↗</a>`:escapeHtml(value)}</dd></div>`;
       }).join('')}</dl>${item.pageUrl?`<div class="modal-actions"><a class="primary" href="${escapeHtml(item.pageUrl)}" rel="noopener noreferrer" target="_blank">${t('openPage')} ↗</a></div>`:''}`;
