@@ -6,6 +6,14 @@
   <meta name="color-scheme" content="light">
   <title>Consiglio del Centro | DH UNICA</title>
   <meta name="description" content="Directory del Consiglio del Centro DH UNICA: ricerca e consulta i profili.">
+  <!-- OPZIONI: usare true oppure false, senza virgolette. -->
+  <script>
+    const DIRECTORY_OPTIONS = {
+      transparent: true, // true = tutti gli sfondi trasparenti; false = stile originale
+      showHeader: true   // true = mostra l’intestazione; false = nasconde solo il titolo
+    };
+    document.documentElement.dataset.transparent = String(DIRECTORY_OPTIONS.transparent);
+  </script>
   <style>
     :root{--bg:#f5f7fc;--surface:#fff;--ink:#17233a;--muted:#5d6b81;--line:#dfe6f0;--blue:#2349c6;--blue-soft:#edf2ff;--gold:#a56a12;--shadow:0 8px 30px rgba(24,43,80,.065);--radius:17px}
     *,*::before,*::after{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}button,input,select{font:inherit}button{cursor:pointer}button:disabled{cursor:not-allowed;opacity:.46}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}a{color:var(--blue)}:focus-visible{outline:3px solid #79a0ff;outline-offset:3px}[hidden]{display:none!important}
@@ -18,12 +26,33 @@
     .notice{padding:22px;color:var(--muted)}.notice.error{border-color:#f4bcc1;background:#fff7f7;color:#8a2431}.pagination{display:flex;align-items:center;justify-content:center;gap:6px;flex-wrap:wrap;margin:22px 0}.pagination button{border:1px solid #d6dfed;background:white;color:var(--ink);border-radius:9px;min-width:37px;height:37px;padding:6px 10px}.pagination button[aria-current="page"]{background:var(--blue);color:white;border-color:var(--blue)}.pagination span{color:var(--muted)}.load-more{display:block;margin:16px auto}.smallnote{font-size:12px;color:var(--muted);margin:10px 0 0}
     .modal-backdrop{position:fixed;inset:0;background:rgba(13,25,48,.65);z-index:1000;display:grid;place-items:center;padding:16px}.modal{position:relative;background:white;border-radius:20px;width:min(750px,100%);max-height:min(90dvh,900px);overflow:auto;box-shadow:0 25px 70px rgba(0,0,0,.25);outline:none}.modal-head{position:sticky;top:0;background:#fff;z-index:2;display:flex;justify-content:flex-end;padding:9px;border-bottom:1px solid var(--line)}.close-modal{border:0;border-radius:10px;background:#f0f3f9;color:var(--ink);font-weight:750;font-size:22px;width:38px;height:38px}.modal-body{padding:22px}.modal-identity{display:flex;align-items:center;gap:18px;margin-bottom:18px;flex-wrap:wrap}.modal-identity h2{margin:5px 0;font-size:clamp(20px,3vw,27px)}.modal-identity p{margin:4px 0;color:var(--blue);font-weight:650}.details-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}.detail{border:1px solid var(--line);border-radius:11px;padding:12px;min-width:0}.detail dt{font-size:11px;font-weight:750;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:4px}.detail dd{margin:0;overflow-wrap:anywhere;white-space:pre-wrap}.detail a{overflow-wrap:anywhere}.modal-actions{margin-top:20px;display:flex;gap:10px;flex-wrap:wrap}body.modal-open{overflow:hidden}
     @media(max-width:700px){.search-row{grid-template-columns:1fr}.search-row .secondary{width:100%}.controls{width:100%}.top-title{padding:18px}.details-grid{grid-template-columns:1fr}.modal-body{padding:16px}.featured-grid{grid-template-columns:1fr}.wrap{padding:14px}.filters-panel{padding:14px}}@media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;transition:none!important}}
+    /* Trasparenza estesa anche a schede, filtri, pulsanti e finestra profilo.
+       Le foto, il testo, i bordi e gli indicatori di focus restano visibili. */
+    html[data-transparent="true"],
+    html[data-transparent="true"] body,
+    html[data-transparent="true"] body *,
+    html[data-transparent="true"] body *::before,
+    html[data-transparent="true"] body *::after {
+      background: transparent !important;
+      box-shadow: none !important;
+    }
+    html[data-transparent="true"] .segmented button[aria-pressed="true"],
+    html[data-transparent="true"] .pagination button[aria-current="page"],
+    html[data-transparent="true"] .primary,
+    html[data-transparent="true"] .badge.director {
+      color: var(--blue);
+    }
+    html[data-transparent="true"] .segmented button[aria-pressed="true"] {
+      outline: 1px solid var(--blue);
+      outline-offset: -1px;
+    }
+    .topbar:has(.top-title[hidden]) { justify-content: flex-end; }
   </style>
 </head>
 <body>
   <main class="wrap">
     <header class="topbar">
-      <div class="top-title"><div class="eyebrow">DH UNICA · DIRECTORY</div><h1 id="page-title">CONSIGLIO DEL CENTRO</h1><p class="subtitle" id="page-subtitle">Persone e componenti del Consiglio</p></div>
+      <div class="top-title" id="directory-heading" hidden><div class="eyebrow">DH UNICA · DIRECTORY</div><h1 id="page-title">CONSIGLIO DEL CENTRO</h1><p class="subtitle" id="page-subtitle">Persone e componenti del Consiglio</p></div>
       <div class="lang-box"><div class="eyebrow" id="language-label">Lingua</div><div class="segmented" role="group" aria-label="Lingua / Language"><button id="lang-it" type="button" aria-pressed="true">IT</button><button id="lang-en" type="button" aria-pressed="false">EN</button></div></div>
     </header>
     <section id="featured-section" aria-labelledby="featured-title" hidden><div class="feature-intro"><div class="eyebrow" id="featured-kicker">In evidenza</div><h2 id="featured-title">Direzione e coordinamento</h2><p id="featured-subtitle">Figure di riferimento del Centro.</p></div><div id="featured-grid" class="featured-grid"></div></section>
@@ -46,6 +75,7 @@
   (() => {
     'use strict';
     const CONFIG = {
+      ...DIRECTORY_OPTIONS,
       csvUrl: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTXzXVD97NxAGmhibLmX3OkOIf7pH7ybu3VmChRQAM5MCaCC3aj-NADoG1cv2yNSL9IUItRzYmcmCyP/pub?gid=0&single=true&output=csv',
       refreshMs: 300000,
       allBatchSize: 72,
@@ -65,6 +95,7 @@
       en: {title:'DH UNICA BOARD',subtitle:'DH UNICA · Board members',language:'Language',featuredKicker:'Featured',featuredTitle:'Leadership and coordination',featuredSubtitle:'Key people and special assignments.',search:'Search all fields',searchPlaceholder:'Name, role, department, area, project...',sort:'Sort by',sortAZ:'Name A–Z',sortZA:'Name Z–A',sortRelevance:'Relevance',sortRole:'Role / assignment',reset:'Reset filters',filters:'Filter by field',filterNote:'Filters can be combined',all:'All',perPage:'Per page',view:'View',grid:'Grid',list:'List',allPeople:'All people',loading:'Loading data...',error:'Could not load the CSV. Check the published sheet and URL.',empty:'No profiles match your search.',profiles:'profiles',visible:'results',of:'of',profile:'View full profile',director:'Director',coordinator:'Coordinator',special:'Special assignment',prev:'Previous',next:'Next',more:'Show more results',close:'Close',openPage:'Open institutional page',page:'Web page',image:'Image',updated:'Data updated',updateError:'Refresh failed: previously loaded data remains visible.',dataError:'CSV has no headers or no recognizable name column.',name:'Name',role:'Role',dept:'Department',area:'Area',assignment:'Assignment',showing:'Showing',noData:'—'}
     };
     const $ = id => document.getElementById(id);
+    $('directory-heading').hidden = !CONFIG.showHeader;
     const state = {lang:'it',headers:[],items:[],matches:[],featured:[],regular:[],filters:new Map(),search:'',sort:'name-asc',view:'grid',size:'12',page:1,renderCount:72,modalId:null,loading:false,lastFocus:null,loadError:false};
     const collator = () => new Intl.Collator(state.lang,{sensitivity:'base',numeric:true});
     const t = key => COPY[state.lang][key] || key;
