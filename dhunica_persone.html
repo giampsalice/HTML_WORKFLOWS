@@ -46,8 +46,17 @@
       outline: 1px solid var(--blue);
       outline-offset: -1px;
     }
-    /* Con il profilo trasparente, evita di sovrapporre il testo della galleria. */
-    html[data-transparent="true"] body.modal-open main.wrap { visibility: hidden; }
+    /* Il dettaglio occupa il normale flusso della pagina: compatibile anche con iframe. */
+    #modal-backdrop:not([hidden]) {
+      position: relative; inset: auto; display: block; z-index: auto;
+      width: 100%; padding: clamp(14px,3vw,32px);
+    }
+    #profile-modal {
+      position: relative; width: 100%; max-width: 900px;
+      max-height: none; overflow: visible; margin: 0 auto;
+    }
+    #profile-modal .modal-head { position: relative; top: auto; }
+    body.modal-open { overflow: auto; }
     .topbar:has(.top-title[hidden]) { justify-content: flex-end; }
   </style>
 </head>
@@ -274,13 +283,17 @@
         const value=item.values[h.id];if(!value)return '';const url=h.isUrl?safeUrl(value):'';
         return `<div class="detail"><dt>${escapeHtml(h.label)}</dt><dd>${url?`<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(value)} ↗</a>`:escapeHtml(value)}</dd></div>`;
       }).join('')}</dl>${item.pageUrl?`<div class="modal-actions"><a class="primary" href="${escapeHtml(item.pageUrl)}" rel="noopener noreferrer" target="_blank">${t('openPage')} ↗</a></div>`:''}`;
-      $('modal-backdrop').hidden=false;document.body.classList.add('modal-open');document.querySelector('main.wrap').inert=true;$('modal-close').focus({preventScroll:true});
+      document.querySelector('main.wrap').hidden=true;
+      $('modal-backdrop').hidden=false;
+      document.body.classList.add('modal-open');
+      window.scrollTo({left:0,top:0,behavior:'instant'});
+      $('modal-close').focus({preventScroll:true});
     }
     function closeModal(){
       if(state.modalId===null)return;
       $('modal-backdrop').hidden=true;
       document.body.classList.remove('modal-open');
-      document.querySelector('main.wrap').inert=false;
+      document.querySelector('main.wrap').hidden=false;
       state.modalId=null;
       if(state.lastFocus?.isConnected)state.lastFocus.focus({preventScroll:true});
       if(state.galleryScroll)window.scrollTo({...state.galleryScroll,behavior:'instant'});
