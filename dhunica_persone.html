@@ -10,7 +10,7 @@
   <script>
     const DIRECTORY_OPTIONS = {
       transparent: true, // true = tutti gli sfondi trasparenti; false = stile originale
-      showHeader: false   // true = mostra l’intestazione; false = nasconde solo il titolo
+      showHeader: true   // true = mostra l’intestazione; false = nasconde solo il titolo
     };
     document.documentElement.dataset.transparent = String(DIRECTORY_OPTIONS.transparent);
   </script>
@@ -76,6 +76,15 @@
     'use strict';
     const CONFIG = {
       ...DIRECTORY_OPTIONS,
+      // Colonne escluse da filtri, profili e ricerca (il CSV originale non viene modificato).
+      excludedFields: [
+        'telefono', 'numero di telefono', 'numero telefono', 'tel', 'cellulare',
+        'phone', 'phone number', 'telephone', 'mobile',
+        'interesse di ricerca', 'interessi di ricerca', 'interesse ricerca', 'interessi ricerca',
+        'research interest', 'research interests',
+        'approvato', 'approved', 'email', 'e-mail', 'indirizzo email', 'indirizzo e-mail',
+        'email address'
+      ],
       csvUrl: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTXzXVD97NxAGmhibLmX3OkOIf7pH7ybu3VmChRQAM5MCaCC3aj-NADoG1cv2yNSL9IUItRzYmcmCyP/pub?gid=0&single=true&output=csv',
       refreshMs: 300000,
       allBatchSize: 72,
@@ -101,6 +110,9 @@
     const t = key => COPY[state.lang][key] || key;
     const norm = value => String(value ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase().replace(/\s+/g,' ').trim();
     const clean = value => String(value ?? '').trim();
+    const fieldKey = value => norm(value).replace(/[^a-z0-9]/g,'');
+    const excludedFieldKeys = new Set(CONFIG.excludedFields.map(fieldKey));
+    const excludedField = header => excludedFieldKeys.has(fieldKey(header));
     const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     const safeUrl = value => { try {const u = new URL(clean(value));return ['https:','http:'].includes(u.protocol) ? u.href : '';}catch{return '';} };
     const imageHeader = header => /(^|\b)(immagine|foto|image|photo|avatar|portrait|thumbnail)(\b|$)/i.test(norm(header));
@@ -136,25 +148,76 @@
       if(item.special)return 'special';return '';
     }
     const priority = item => ({director:0,coordinator:1,special:2})[item.featureType] ?? 3;
+    // Accetta URL diretti e link condivisi; non usa proxy esterni.
+    function imageCandidates(value){
+      let raw=clean(value).replace(/&amp;/gi,'&');
+      if(raw.startsWith('//'))raw='https:'+raw;
+      else if(/^www\./i.test(raw))raw='https://'+raw;
+      const direct=safeUrl(raw);if(!direct)return [];
+      const url=new URL(direct);
+      if(url.hostname==='drive.google.com'){
+        const id=url.pathname.match(/^\/file\/d\/([a-zA-Z0-9_-]+)/)?.[1] || url.searchParams.get('id');
+        if(id && /^[a-zA-Z0-9_-]+$/.test(id)){
+          const thumb=new URL('https://drive.google.com/thumbnail');
+          thumb.searchParams.set('id',id);thumb.searchParams.set('sz','w400');
+          const resourceKey=url.searchParams.get('resourcekey');
+          if(resourceKey)thumb.searchParams.set('resourcekey',resourceKey);
+          return [thumb.href,direct];
+        }
+      }
+      return [direct];
+    }
     function processCsv(text){
       const rows=parseCsv(text);if(!rows.length)throw new Error(t('dataError'));
       const rawHeaders=rows.shift().map(clean);const seen=new Map();const headers=rawHeaders.map((name,index)=>{
         const base=name || `Colonna ${index+1}`;const n=(seen.get(base)||0)+1;seen.set(base,n);return {id:`col${index}`,label:n===1?base:`${base} (${n})`,source:base,index,kind:kindOf(base),isUrl:isUrlHeader(base)};
-      });
+      }).filter(header=>!excludedField(header.source));
       const locate=kind=>headers.find(h=>h.kind===kind);
+      // Preferisce “url immagine”, ma cerca anche nelle altre colonne foto.
+      const imageColumns=headers.filter(h=>h.kind==='image').sort((a,b)=>{
+        const rank=h=>['url immagine','image url','url foto','photo url'].includes(norm(h.source))?0:1;
+        return rank(a)-rank(b);
+      });
       const nameCol=locate('name');if(!nameCol)throw new Error(t('dataError'));
       const get=(fields,kind)=>{const col=locate(kind);return col?fields[col.index]||'':'';};
       const items=rows.map((row,index)=>{
         const values=Object.fromEntries(headers.map(h=>[h.id,clean(row[h.index])]));
-        const item={id:index,name:clean(get(row,'name')),role:clean(get(row,'role')),dept:clean(get(row,'dept')),area:clean(get(row,'area')),special:clean(get(row,'special')),imageUrl:safeUrl(get(row,'image')),pageUrl:safeUrl(get(row,'page')),values};
+        const images=[...new Set(imageColumns.flatMap(h=>imageCandidates(row[h.index])))];
+        const item={id:index,name:clean(get(row,'name')),role:clean(get(row,'role')),dept:clean(get(row,'dept')),area:clean(get(row,'area')),special:clean(get(row,'special')),imageUrl:images[0]||'',imageCandidates:images,pageUrl:safeUrl(get(row,'page')),values};
         item.featureType=classify(item);item.searchText=norm(Object.values(values).join(' '));return item;
       }).filter(item=>item.name);
       return {headers,items};
     }
     function initials(name){return (clean(name).split(/\s+/).filter(Boolean).slice(0,2).map(s=>Array.from(s)[0]).join('') || '?').toLocaleUpperCase();}
     function avatarHtml(item,cls='',eager=false){
-      return `<span class="avatar ${cls}" aria-hidden="true"><span>${escapeHtml(initials(item.name))}</span>${item.imageUrl?`<img src="${escapeHtml(item.imageUrl)}" alt="" loading="${eager?'eager':'lazy'}" decoding="async" referrerpolicy="no-referrer" onerror="this.remove()">`:''}</span>`;
+      // Gli errori sono gestiti con eventi, anche quando gli handler inline sono bloccati.
+      return `<span class="avatar ${cls}" aria-hidden="true"><span>${escapeHtml(initials(item.name))}</span>${item.imageUrl?`<img src="${escapeHtml(item.imageUrl)}" data-avatar-id="${item.id}" alt="" loading="${eager?'eager':'lazy'}" decoding="async" referrerpolicy="no-referrer">`:''}</span>`;
     }
+    document.addEventListener('error',event=>{
+      const img=event.target;
+      if(!(img instanceof HTMLImageElement)||!img.hasAttribute('data-avatar-id'))return;
+      const item=state.items.find(person=>String(person.id)===img.dataset.avatarId);
+      const candidates=item?.imageCandidates||[];
+      let attempt=Number(img.dataset.imageAttempt||0)+1;
+      img.dataset.imageAttempt=String(attempt);
+      // Ritenta una sola volta per URL con il referrer limitato all’origine.
+      const candidate=candidates[Math.floor(attempt/2)];
+      if(candidate){
+        img.referrerPolicy=attempt%2?'strict-origin-when-cross-origin':'no-referrer';
+        img.src=candidate;
+      }else{
+        img.parentElement.dataset.imageStatus='unavailable';
+        console.warn('[DH UNICA directory] Foto non caricata:',item?.name||img.dataset.avatarId,
+          'Verificare che il link restituisca un’immagine pubblica e che il sito consenta il caricamento.');
+        img.remove();
+      }
+    },true);
+    document.addEventListener('load',event=>{
+      const img=event.target;
+      if(img instanceof HTMLImageElement && img.hasAttribute('data-avatar-id')){
+        img.parentElement.dataset.imageStatus='loaded';
+      }
+    },true);
     function badge(item){const key=item.featureType;if(!key)return '';return `<span class="badge ${key}">${escapeHtml(key==='special'?(item.special||t('special')):t(key))}</span>`;}
     function featureCard(item){return `<button class="feature-card" type="button" data-profile="${item.id}" aria-label="${escapeHtml(t('profile')+': '+item.name)}">${avatarHtml(item,'large')}<span class="feature-copy">${badge(item)}<h3>${escapeHtml(item.name)}</h3><p>${escapeHtml(item.role||item.special||'')}</p><p>${escapeHtml(item.dept)}</p></span></button>`;}
     function personCard(item){return `<article class="profile-card" data-profile="${item.id}" tabindex="0" role="button" aria-label="${escapeHtml(t('profile')+': '+item.name)}"><div class="card-top">${avatarHtml(item)}<div><h3 class="card-name">${escapeHtml(item.name)}</h3>${item.role?`<p class="card-role">${escapeHtml(item.role)}</p>`:''}</div></div><div class="card-meta">${item.dept?`<div class="meta-line"><strong>${escapeHtml(t('dept'))}:</strong> ${escapeHtml(item.dept)}</div>`:''}${item.area?`<div class="meta-line"><strong>${escapeHtml(t('area'))}:</strong> ${escapeHtml(item.area)}</div>`:''}${item.special?`<div class="meta-line">${badge(item)} ${escapeHtml(item.special)}</div>`:''}</div><div class="card-footer"><span class="smallnote">${escapeHtml(item.dept?'DH UNICA':'')}</span><span class="secondary" aria-hidden="true">${escapeHtml(t('profile'))} →</span></div></article>`;}
