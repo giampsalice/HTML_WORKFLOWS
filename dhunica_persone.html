@@ -58,6 +58,9 @@
     #profile-modal .modal-head { position: relative; top: auto; }
     body.modal-open { overflow: auto; }
     .topbar:has(.top-title[hidden]) { justify-content: flex-end; }
+    .lab-memberships{display:grid;gap:5px;margin-top:7px;font-size:12px;color:var(--muted);white-space:normal}
+    .lab-tags{display:flex;flex-wrap:wrap;gap:5px;min-width:0}
+    .lab-tags .badge{white-space:normal;text-align:left}
   </style>
 </head>
 <body>
@@ -102,6 +105,7 @@
       // I nomi sono riconosciuti dagli header, NON dalle posizioni delle colonne.
       aliases: {
         name: ['nome','nome e cognome','nominativo','cognome e nome','name','full name','person','persona'],
+        labs: ['laboratorio','laboratori','laboratorio di appartenenza','laboratori di appartenenza','laboratory','laboratories','lab','labs'],
         role: ['ruolo','qualifica','role','position','posizione'],
         dept: ['dipartimento','department','dept'],
         area: ['ambito','area','ambito scientifico','research area'],
@@ -111,8 +115,8 @@
       }
     };
     const COPY = {
-      it: {title:'CONSIGLIO DEL CENTRO',subtitle:'DH UNICA · Componenti del Consiglio del Centro',language:'Lingua',featuredKicker:'In evidenza',featuredTitle:'Direzione e coordinamento',featuredSubtitle:'Figure di riferimento e incarichi speciali.',search:'Cerca in tutti i campi',searchPlaceholder:'Nome, ruolo, dipartimento, ambito, progetto...',sort:'Ordina per',sortAZ:'Nome A–Z',sortZA:'Nome Z–A',sortRelevance:'Rilevanza',sortRole:'Ruolo / incarico',reset:'Azzera filtri',filters:'Filtra per campo',filterNote:'I filtri si combinano tra loro',all:'Tutti',perPage:'Per pagina',view:'Vista',grid:'Griglia',list:'Lista',allPeople:'Tutte le persone',loading:'Caricamento dei dati...',error:'Non è stato possibile caricare il CSV. Verifica la pubblicazione del foglio e l’URL.',empty:'Nessun profilo corrisponde alla ricerca.',profiles:'profili',visible:'risultati',of:'di',profile:'Vedi profilo completo',director:'Direttore',coordinator:'Coordinatore',special:'Incarico speciale',prev:'Precedente',next:'Successiva',more:'Mostra altri risultati',close:'Chiudi',openPage:'Apri pagina istituzionale',page:'Pagina web',image:'Immagine',updated:'Dati aggiornati',updateError:'Aggiornamento non riuscito: rimangono visibili i dati precedenti.',dataError:'CSV senza intestazioni o senza una colonna riconoscibile per il nome.',name:'Nome',role:'Ruolo',dept:'Dipartimento',area:'Ambito',assignment:'Incarico',showing:'Visualizzati',noData:'—'},
-      en: {title:'DH UNICA BOARD',subtitle:'DH UNICA · Board members',language:'Language',featuredKicker:'Featured',featuredTitle:'Leadership and coordination',featuredSubtitle:'Key people and special assignments.',search:'Search all fields',searchPlaceholder:'Name, role, department, area, project...',sort:'Sort by',sortAZ:'Name A–Z',sortZA:'Name Z–A',sortRelevance:'Relevance',sortRole:'Role / assignment',reset:'Reset filters',filters:'Filter by field',filterNote:'Filters can be combined',all:'All',perPage:'Per page',view:'View',grid:'Grid',list:'List',allPeople:'All people',loading:'Loading data...',error:'Could not load the CSV. Check the published sheet and URL.',empty:'No profiles match your search.',profiles:'profiles',visible:'results',of:'of',profile:'View full profile',director:'Director',coordinator:'Coordinator',special:'Special assignment',prev:'Previous',next:'Next',more:'Show more results',close:'Close',openPage:'Open institutional page',page:'Web page',image:'Image',updated:'Data updated',updateError:'Refresh failed: previously loaded data remains visible.',dataError:'CSV has no headers or no recognizable name column.',name:'Name',role:'Role',dept:'Department',area:'Area',assignment:'Assignment',showing:'Showing',noData:'—'}
+      it: {title:'CONSIGLIO DEL CENTRO',subtitle:'DH UNICA · Componenti del Consiglio del Centro',language:'Lingua',featuredKicker:'In evidenza',featuredTitle:'Direzione e coordinamento',featuredSubtitle:'Figure di riferimento e incarichi speciali.',search:'Cerca in tutti i campi',searchPlaceholder:'Nome, ruolo, dipartimento, ambito, progetto...',sort:'Ordina per',sortAZ:'Nome A–Z',sortZA:'Nome Z–A',sortRelevance:'Rilevanza',sortRole:'Ruolo / incarico',reset:'Azzera filtri',filters:'Filtra per campo',filterNote:'I filtri si combinano tra loro',all:'Tutti',perPage:'Per pagina',view:'Vista',grid:'Griglia',list:'Lista',allPeople:'Tutte le persone',loading:'Caricamento dei dati...',error:'Non è stato possibile caricare il CSV. Verifica la pubblicazione del foglio e l’URL.',empty:'Nessun profilo corrisponde alla ricerca.',profiles:'profili',visible:'risultati',of:'di',profile:'Vedi profilo completo',director:'Direttore',coordinator:'Coordinatore',special:'Incarico speciale',prev:'Precedente',next:'Successiva',more:'Mostra altri risultati',close:'Chiudi',openPage:'Apri pagina istituzionale',page:'Pagina web',image:'Immagine',updated:'Dati aggiornati',updateError:'Aggiornamento non riuscito: rimangono visibili i dati precedenti.',dataError:'CSV senza intestazioni o senza una colonna riconoscibile per il nome.',name:'Nome',role:'Ruolo',dept:'Dipartimento',area:'Ambito',labs:'Laboratori',assignment:'Incarico',showing:'Visualizzati',noData:'—'},
+      en: {title:'DH UNICA BOARD',subtitle:'DH UNICA · Board members',language:'Language',featuredKicker:'Featured',featuredTitle:'Leadership and coordination',featuredSubtitle:'Key people and special assignments.',search:'Search all fields',searchPlaceholder:'Name, role, department, area, project...',sort:'Sort by',sortAZ:'Name A–Z',sortZA:'Name Z–A',sortRelevance:'Relevance',sortRole:'Role / assignment',reset:'Reset filters',filters:'Filter by field',filterNote:'Filters can be combined',all:'All',perPage:'Per page',view:'View',grid:'Grid',list:'List',allPeople:'All people',loading:'Loading data...',error:'Could not load the CSV. Check the published sheet and URL.',empty:'No profiles match your search.',profiles:'profiles',visible:'results',of:'of',profile:'View full profile',director:'Director',coordinator:'Coordinator',special:'Special assignment',prev:'Previous',next:'Next',more:'Show more results',close:'Close',openPage:'Open institutional page',page:'Web page',image:'Image',updated:'Data updated',updateError:'Refresh failed: previously loaded data remains visible.',dataError:'CSV has no headers or no recognizable name column.',name:'Name',role:'Role',dept:'Department',area:'Area',labs:'Laboratories',assignment:'Assignment',showing:'Showing',noData:'—'}
     };
     const $ = id => document.getElementById(id);
     $('directory-heading').hidden = !CONFIG.showHeader;
@@ -136,6 +140,7 @@
       if(/(?:nome.*cognome|cognome.*nome|nominativo|full.?name|person name)/.test(h))return 'name';
       if(/(?:foto|immagine|image|photo|avatar|portrait)/.test(h))return 'image';
       if(/(?:url|link|pagina|website|sito web)/.test(h)&&/(?:profilo|pagina|istituzional|web|site|personale|personal)/.test(h))return 'page';
+      if(/(?:laboratori|laboratory|laboratories)/.test(h))return 'labs';
       if(/(?:dipartiment|department)/.test(h))return 'dept';
       if(/(?:incaric|special assignment|special role)/.test(h))return 'special';
       if(/(?:ambito|research area)/.test(h))return 'area';
@@ -178,6 +183,24 @@
       }
       return [direct];
     }
+    function splitLabs(value){
+      return [...new Set(clean(value).split(/[;\n\r]+/).map(clean).filter(Boolean))];
+    }
+    function displayName(row,headers,nameCol){
+      const first=headers.find(h=>['nome','first name','given name'].includes(norm(h.source)));
+      const last=headers.find(h=>['cognome','surname','last name','family name'].includes(norm(h.source)));
+      // Le colonne separate preservano senza ambiguità nomi e cognomi composti.
+      if(first && last)return [clean(row[first.index]),clean(row[last.index])].filter(Boolean).join(' ');
+      const raw=clean(row[nameCol.index]);
+      if(!/^(cognome|surname|last name)/.test(norm(nameCol.source)))return raw;
+      // In una colonna unica, “Cognome, Nome” delimita anche i cognomi composti.
+      const comma=raw.indexOf(',');
+      if(comma>=0)return [clean(raw.slice(comma+1)),clean(raw.slice(0,comma))].filter(Boolean).join(' ');
+      // Formato precedente “Cognome Nome”: il primo termine è il cognome.
+      // Per cognomi composti usare colonne Nome/Cognome o la virgola.
+      const parts=raw.split(/\s+/).filter(Boolean);
+      return parts.length>1?[...parts.slice(1),parts[0]].join(' '):raw;
+    }
     function processCsv(text){
       const rows=parseCsv(text);if(!rows.length)throw new Error(t('dataError'));
       const rawHeaders=rows.shift().map(clean);const seen=new Map();const headers=rawHeaders.map((name,index)=>{
@@ -193,10 +216,14 @@
       const get=(fields,kind)=>{const col=locate(kind);return col?fields[col.index]||'':'';};
       const items=rows.map((row,index)=>{
         const values=Object.fromEntries(headers.map(h=>[h.id,clean(row[h.index])]));
+        const name=displayName(row,headers,nameCol);
+        if(!headers.some(h=>['cognome','surname','last name','family name'].includes(norm(h.source))))values[nameCol.id]=name;
+        const labs=[...new Set(headers.filter(h=>h.kind==='labs').flatMap(h=>splitLabs(row[h.index])))];
         const images=[...new Set(imageColumns.flatMap(h=>imageCandidates(row[h.index])))];
-        const item={id:index,name:clean(get(row,'name')),role:clean(get(row,'role')),dept:clean(get(row,'dept')),area:clean(get(row,'area')),special:clean(get(row,'special')),imageUrl:images[0]||'',imageCandidates:images,pageUrl:safeUrl(get(row,'page')),values};
-        item.featureType=classify(item);item.searchText=norm(Object.values(values).join(' '));return item;
+        const item={id:index,name,labs,role:clean(get(row,'role')),dept:clean(get(row,'dept')),area:clean(get(row,'area')),special:clean(get(row,'special')),imageUrl:images[0]||'',imageCandidates:images,pageUrl:safeUrl(get(row,'page')),values};
+        item.featureType=classify(item);item.searchText=norm([name,...Object.values(values)].join(' '));return item;
       }).filter(item=>item.name);
+      if(/^(cognome|surname|last name)/.test(norm(nameCol.source)))nameCol.label='Nome e cognome';
       return {headers,items};
     }
     function initials(name){return (clean(name).split(/\s+/).filter(Boolean).slice(0,2).map(s=>Array.from(s)[0]).join('') || '?').toLocaleUpperCase();}
@@ -230,13 +257,17 @@
       }
     },true);
     function badge(item){const key=item.featureType;if(!key)return '';return `<span class="badge ${key}">${escapeHtml(key==='special'?(item.special||t('special')):t(key))}</span>`;}
-    function featureCard(item){return `<button class="feature-card" type="button" data-profile="${item.id}" aria-label="${escapeHtml(t('profile')+': '+item.name)}">${avatarHtml(item,'large')}<span class="feature-copy">${badge(item)}<h3>${escapeHtml(item.name)}</h3><p>${escapeHtml(item.role||item.special||'')}</p><p>${escapeHtml(item.dept)}</p></span></button>`;}
-    function personCard(item){return `<article class="profile-card" data-profile="${item.id}" tabindex="0" role="button" aria-label="${escapeHtml(t('profile')+': '+item.name)}"><div class="card-top">${avatarHtml(item)}<div><h3 class="card-name">${escapeHtml(item.name)}</h3>${item.role?`<p class="card-role">${escapeHtml(item.role)}</p>`:''}</div></div><div class="card-meta">${item.dept?`<div class="meta-line"><strong>${escapeHtml(t('dept'))}:</strong> ${escapeHtml(item.dept)}</div>`:''}${item.area?`<div class="meta-line"><strong>${escapeHtml(t('area'))}:</strong> ${escapeHtml(item.area)}</div>`:''}${item.special?`<div class="meta-line">${badge(item)} ${escapeHtml(item.special)}</div>`:''}</div><div class="card-footer"><span class="smallnote">${escapeHtml(item.dept?'DH UNICA':'')}</span><span class="secondary" aria-hidden="true">${escapeHtml(t('profile'))} →</span></div></article>`;}
+    function labsHtml(item){
+      if(!item.labs?.length)return '';
+      return `<span class="lab-memberships"><strong>${escapeHtml(t('labs'))}:</strong><span class="lab-tags">${item.labs.map(lab=>`<span class="badge">${escapeHtml(lab)}</span>`).join('')}</span></span>`;
+    }
+    function featureCard(item){return `<button class="feature-card" type="button" data-profile="${item.id}" aria-label="${escapeHtml(t('profile')+': '+item.name)}">${avatarHtml(item,'large')}<span class="feature-copy">${badge(item)}<h3>${escapeHtml(item.name)}</h3><p>${escapeHtml(item.role||item.special||'')}</p><p>${escapeHtml(item.dept)}</p>${labsHtml(item)}</span></button>`;}
+    function personCard(item){return `<article class="profile-card" data-profile="${item.id}" tabindex="0" role="button" aria-label="${escapeHtml(t('profile')+': '+item.name)}"><div class="card-top">${avatarHtml(item)}<div><h3 class="card-name">${escapeHtml(item.name)}</h3>${item.role?`<p class="card-role">${escapeHtml(item.role)}</p>`:''}</div></div><div class="card-meta">${item.dept?`<div class="meta-line"><strong>${escapeHtml(t('dept'))}:</strong> ${escapeHtml(item.dept)}</div>`:''}${item.area?`<div class="meta-line"><strong>${escapeHtml(t('area'))}:</strong> ${escapeHtml(item.area)}</div>`:''}${labsHtml(item)}${item.special?`<div class="meta-line">${badge(item)} ${escapeHtml(item.special)}</div>`:''}</div><div class="card-footer"><span class="smallnote">${escapeHtml(item.dept?'DH UNICA':'')}</span><span class="secondary" aria-hidden="true">${escapeHtml(t('profile'))} →</span></div></article>`;}
     function listHtml(items){return `<div class="table-shell"><table class="people-table"><thead><tr><th scope="col">${t('name')}</th><th scope="col">${t('role')}</th><th scope="col">${t('dept')}</th><th scope="col">${t('area')}</th><th scope="col">${t('assignment')}</th><th scope="col"><span class="sr-only">${t('profile')}</span></th></tr></thead><tbody>${items.map(item=>`<tr><td><div class="table-person">${avatarHtml(item)}<button type="button" data-profile="${item.id}">${escapeHtml(item.name)}</button></div></td><td>${escapeHtml(item.role||'—')}</td><td>${escapeHtml(item.dept||'—')}</td><td>${escapeHtml(item.area||'—')}</td><td>${badge(item)} ${escapeHtml(item.special||'')}</td><td class="table-action"><button type="button" class="secondary" data-profile="${item.id}">${t('profile')} →</button></td></tr>`).join('')}</tbody></table></div>`;}
     function renderFilters(){
       const target=$('dynamic-filters');const old=state.filters;const next=new Map();
       const html=state.headers.filter(h=>!h.isUrl).map(h=>{
-        const values=[...new Set(state.items.map(item=>item.values[h.id]).filter(Boolean))].sort(collator().compare);
+        const values=[...new Set(state.items.flatMap(item=>h.kind==='labs'?splitLabs(item.values[h.id]):[item.values[h.id]]).filter(Boolean))].sort(collator().compare);
         if(!values.length)return '';
         const selected=values.includes(old.get(h.id))?old.get(h.id):'';if(selected)next.set(h.id,selected);
         return `<div class="field"><label for="filter-${h.id}" title="${escapeHtml(h.label)}">${escapeHtml(h.label)}</label><select id="filter-${h.id}" data-filter="${h.id}"><option value="">${escapeHtml(t('all'))} · ${escapeHtml(h.label)}</option>${values.map(v=>`<option value="${escapeHtml(v)}" ${selected===v?'selected':''}>${escapeHtml(v)}</option>`).join('')}</select></div>`;
@@ -251,7 +282,7 @@
     });}
     function applyFilters(resetPage=true){
       const q=norm(state.search);
-      state.matches=state.items.filter(item=>(!q||item.searchText.includes(q))&&[...state.filters].every(([key,value])=>!value||item.values[key]===value));
+      state.matches=state.items.filter(item=>(!q||item.searchText.includes(q))&&[...state.filters].every(([key,value])=>!value||(state.headers.find(h=>h.id===key)?.kind==='labs'?splitLabs(item.values[key]).includes(value):item.values[key]===value)));
       state.featured=state.matches.filter(i=>i.featureType).sort((a,b)=>priority(a)-priority(b)||collator().compare(a.name,b.name));
       state.regular=sortItems(state.matches.filter(i=>!i.featureType));
       if(resetPage){state.page=1;state.renderCount=CONFIG.allBatchSize;}
